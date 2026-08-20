@@ -1,0 +1,23 @@
+# Dependencies / build output
+node_modules/
+dist/
+dist-ssr/
+__pycache__/
+*.pyc
+.venv/
+
+# Environment / secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Experiment results (auditable artifacts stay out of git; README documents them)
+experiments/results/
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log
