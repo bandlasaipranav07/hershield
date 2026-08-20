@@ -24,6 +24,10 @@ Every important decision gets a row: what we decided, why, what we gave up, and 
 | 16 | 2026-08-20 | experiment_results/test_utterances: no client writes; service-role only | Prevents users faking metrics | Requires server-side write path (harness) | PROPOSED |
 | 17 | 2026-08-20 | PHASE 1 DONE: git init, Vite React-TS scaffold, Vitest + RTL, .env.example, DEMO/SIMULATION placeholder | Approved Phase 1 plan | — | ✅ Done |
 | 18 | 2026-08-20 | Repo-local git identity set to placeholder "HerShield Team <hersheild-team@example.com>" | No git identity existed; user chose repo-local; team can override anytime with `git config user.name "Real Name"` | Commits attributed to placeholder until changed | ✅ Done (override per team) |
+| 19 | 2026-08-20 | Add react-router-dom for client routing | Multiple screens (login/register/home, later contacts/dashboard); matches PHASE_0_DESIGN App.tsx "routes + banner" | Single extra dep | ✅ Done |
+| 20 | 2026-08-20 | `lib/supabase.ts` throws on missing env vars (fail fast) | Without keys the app can't talk to Supabase; clear message beats silent 404s | App won't render until `.env` filled | ✅ Done |
+| 21 | 2026-08-20 | `signInWithEmail` catches thrown AuthError | supabase-js v2.112 throws (not returns) on invalid login credentials | — | ✅ Done |
+| 22 | 2026-08-20 | RLS verification shipped as manual SQL + browser checklist in supabase/README.md; automated RLS integration test deferred to CI/test-DB phase | No test database exists yet; manual proof is honest and doable now | RLS verified manually, not automated | ✅ Deferred (documented) |
 
 ## Rules for future entries
 

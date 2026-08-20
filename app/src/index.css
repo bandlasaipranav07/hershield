@@ -1,32 +1,105 @@
-* {
-  box-sizing: border-box;
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  color-scheme: light dark;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background: #f8fafc;
-  color: #0f172a;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  background: var(--bg, #f6f7fb);
 }
 
-.app {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 1rem;
+#root {
+  width: 100%;
+  max-width: 480px;
 }
 
-.banner {
-  background: #fde68a;
-  color: #78350f;
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.demo-banner {
+  background: #b42318;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+}
+
+.auth-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 2rem 1.5rem;
+}
+
+.auth-form h1 {
+  margin: 0 0 0.25rem;
+  font-size: 2rem;
+}
+
+.subtitle {
+  margin: 0 0 1rem;
+  color: #555;
+}
+
+.auth-form label {
+  margin-top: 0.75rem;
   font-weight: 600;
 }
 
-main {
-  padding: 2rem 0;
+.auth-form input {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #c9ced9;
+  border-radius: 8px;
+  font-size: 1rem;
 }
 
-h1 {
+.auth-form button {
+  margin-top: 1.25rem;
+  padding: 0.7rem;
+  border: none;
+  border-radius: 8px;
+  background: #1e3a8a;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.form-error {
+  margin: 0.75rem 0 0;
+  color: #b42318;
+  font-weight: 600;
+}
+
+.auth-switch {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+}
+
+.center {
+  text-align: center;
+  padding: 2rem;
+}
+
+.home {
+  flex: 1;
+  padding: 2rem 1.5rem;
+}
+
+.home h1 {
   margin-top: 0;
 }

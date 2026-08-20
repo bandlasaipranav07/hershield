@@ -24,11 +24,15 @@ All items are pending. Checkmarks appear only when a task is actually done.
 - [x] .env.example, README run instructions
 - [x] Small commit + update TODO/DECISIONS
 
-## Phase 2 — Supabase authentication (next, awaiting approval)
-- [ ] Create Supabase project, apply `0001_init.sql` (schema + RLS)
-- [ ] Wire `src/lib/auth.ts`, add Login/Register screens
-- [ ] Add RLS read tests (user cannot read another user's data)
-- [ ] Update docs, commit `feat: add authentication`
+## Phase 2 — Supabase authentication ✅
+- [x] Write `supabase/migrations/0001_init.sql` (schema + RLS + trigger) — pending manual apply
+- [x] Add `@supabase/supabase-js` + `react-router-dom` (routing for multi-screen app)
+- [x] `lib/supabase.ts` (fail-fast env check), `lib/auth.ts`, `AuthContext` (session + sign-in/up/out)
+- [x] Login / Register screens, protected `/` route + DEMO/SIMULATION banner
+- [x] Unit tests (auth helpers, AuthContext, Login, App routing) — 15 tests with mocked Supabase
+- [x] `supabase/README.md` with one-time setup + RLS verification steps
+- [x] Build + lint + tests green; commit `feat: add authentication`
+- [ ] MANUAL (team): create Supabase project, run `0001_init.sql`, fill `app/.env`, run RLS checks
 
 ## Phase 2 — MVP features (in order)
 - [ ] Auth (login/register, protected routes)
