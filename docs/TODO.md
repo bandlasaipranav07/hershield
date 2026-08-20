@@ -16,13 +16,19 @@ All items are pending. Checkmarks appear only when a task is actually done.
 - [x] Write PHASE_0_DESIGN.md (final architecture, schema, RLS, env, git, Phase 1 plan)
 - [ ] **Team approves Phase 0 design → begin Phase 1** ← we are waiting here
 
-## Phase 1 — Project setup (after approval)
-- [ ] git init, .gitignore (never commit secrets), initial docs commit
-- [ ] Scaffold React + TypeScript + Vite app in app/
-- [ ] Strip boilerplate, add DEMO/SIMULATION placeholder
-- [ ] Add Vitest + React Testing Library, smoke test
-- [ ] .env.example, README run instructions
-- [ ] Small commit + update TODO/DECISIONS
+## Phase 1 — Project setup ✅
+- [x] git init, .gitignore (never commit secrets), initial docs commit
+- [x] Scaffold React + TypeScript + Vite app in app/
+- [x] Strip boilerplate, add DEMO/SIMULATION placeholder
+- [x] Add Vitest + React Testing Library, smoke test
+- [x] .env.example, README run instructions
+- [x] Small commit + update TODO/DECISIONS
+
+## Phase 2 — Supabase authentication (next, awaiting approval)
+- [ ] Create Supabase project, apply `0001_init.sql` (schema + RLS)
+- [ ] Wire `src/lib/auth.ts`, add Login/Register screens
+- [ ] Add RLS read tests (user cannot read another user's data)
+- [ ] Update docs, commit `feat: add authentication`
 
 ## Phase 2 — MVP features (in order)
 - [ ] Auth (login/register, protected routes)

@@ -22,6 +22,8 @@ Every important decision gets a row: what we decided, why, what we gave up, and 
 | 14 | 2026-08-20 | Phase 0 design finalized in PHASE_0_DESIGN.md (architecture, schema, RLS, env, git, Phase 1 plan) | Design work | Awaiting team approval of Phase 1 start | PENDING APPROVAL |
 | 15 | 2026-08-20 | Scoring pipeline shared across app + experiment harness via exported model.json + cross-check tests | Keeps app and experiment results consistent | Two runtimes must stay in sync (mitigated by cross-check test) | PROPOSED |
 | 16 | 2026-08-20 | experiment_results/test_utterances: no client writes; service-role only | Prevents users faking metrics | Requires server-side write path (harness) | PROPOSED |
+| 17 | 2026-08-20 | PHASE 1 DONE: git init, Vite React-TS scaffold, Vitest + RTL, .env.example, DEMO/SIMULATION placeholder | Approved Phase 1 plan | — | ✅ Done |
+| 18 | 2026-08-20 | Repo-local git identity set to placeholder "HerShield Team <hersheild-team@example.com>" | No git identity existed; user chose repo-local; team can override anytime with `git config user.name "Real Name"` | Commits attributed to placeholder until changed | ✅ Done (override per team) |
 
 ## Rules for future entries
 
