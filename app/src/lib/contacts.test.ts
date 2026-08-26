@@ -86,6 +86,16 @@ describe('contacts helpers', () => {
 
       expect(result).toEqual({ contacts: [], error: 'permission denied' })
     })
+
+    it('returns an error instead of throwing when the request fails (offline)', async () => {
+      mockedFrom.mockImplementation(() => {
+        throw new Error('Failed to fetch')
+      })
+
+      const result = await listContacts()
+
+      expect(result).toEqual({ contacts: [], error: 'Failed to fetch' })
+    })
   })
 
   describe('addContact', () => {
@@ -132,12 +142,29 @@ describe('contacts helpers', () => {
         data: { session: { user: { id: 'user-1' } } },
         error: null,
       } as never)
-      mockedFrom.mockReturnValue(makeChain({ error: { message: 'new row violates RLS' } }) as never)
+      mockedFrom.mockReturnValue(
+        makeChain({ error: { message: 'new row violates RLS' } }) as never,
+      )
 
       const result = await addContact(input)
 
       expect(result.contact).toBeNull()
       expect(result.error).toBe('new row violates RLS')
+    })
+
+    it('returns an error instead of throwing when the insert request fails', async () => {
+      mockedGetSession.mockResolvedValue({
+        data: { session: { user: { id: 'user-1' } } },
+        error: null,
+      } as never)
+      mockedFrom.mockImplementation(() => {
+        throw new Error('Failed to fetch')
+      })
+
+      const result = await addContact(input)
+
+      expect(result.contact).toBeNull()
+      expect(result.error).toBe('Failed to fetch')
     })
   })
 

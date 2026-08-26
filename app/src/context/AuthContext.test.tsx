@@ -61,6 +61,18 @@ describe('AuthProvider', () => {
     expect(await screen.findByText('user: a@b.com')).toBeInTheDocument()
   })
 
+  it('clears loading and shows no user when getSession rejects', async () => {
+    mockedAuth.getSession.mockRejectedValue(new Error('storage unavailable'))
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+
+    expect(await screen.findByText('no user')).toBeInTheDocument()
+  })
+
   it('throws if useAuth is used outside AuthProvider', () => {
     expect(() => render(<Probe />)).toThrow('useAuth must be used inside <AuthProvider>')
   })

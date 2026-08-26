@@ -125,4 +125,21 @@ describe('Listen', () => {
 
     await waitFor(() => expect(stop).toHaveBeenCalledOnce())
   })
+
+  it('stops an active capture when consent is revoked mid-listen', async () => {
+    const user = userEvent.setup()
+    mockedHasConsent.mockReturnValue(true)
+    const stop = vi.fn()
+    mockedStart.mockReturnValue({ result: new Promise(() => {}), stop })
+
+    renderListen()
+    await user.click(screen.getByRole('button', { name: 'Start listening' }))
+    await user.click(screen.getByRole('button', { name: /revoke mic consent/i }))
+
+    expect(stop).toHaveBeenCalledOnce()
+    expect(mockedRevoke).toHaveBeenCalledOnce()
+    expect(
+      await screen.findByRole('heading', { name: /before we use your microphone/i }),
+    ).toBeInTheDocument()
+  })
 })

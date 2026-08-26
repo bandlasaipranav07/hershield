@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { RequireAuth } from './components/RequireAuth'
 import { Login } from './screens/Login'
@@ -39,6 +39,7 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </AuthProvider>

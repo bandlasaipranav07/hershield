@@ -9,12 +9,17 @@ export async function signUpWithEmail(
   password: string,
   fullName: string,
 ): Promise<AuthResult> {
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { full_name: fullName } },
-  })
-  return { error: error?.message ?? null }
+  try {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    })
+    return { error: error?.message ?? null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : (err as { message?: string } | null)?.message
+    return { error: message ?? 'Sign up failed' }
+  }
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<AuthResult> {

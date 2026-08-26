@@ -19,6 +19,12 @@ export interface ContactInput {
 
 const COLUMNS = 'id, user_id, name, phone, email, relation, created_at'
 
+function toErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message
+  const message = (err as { message?: string } | null)?.message
+  return message ?? fallback
+}
+
 function toPayload(input: ContactInput) {
   return {
     name: input.name.trim(),
@@ -41,14 +47,18 @@ async function getUserId(): Promise<string | null> {
 }
 
 export async function listContacts(): Promise<{ contacts: Contact[]; error: string | null }> {
-  const { data, error } = await supabase
-    .from('contacts')
-    .select(COLUMNS)
-    .order('created_at', { ascending: true })
-  if (error) {
-    return { contacts: [], error: error.message }
+  try {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select(COLUMNS)
+      .order('created_at', { ascending: true })
+    if (error) {
+      return { contacts: [], error: error.message }
+    }
+    return { contacts: (data ?? []) as Contact[], error: null }
+  } catch (err) {
+    return { contacts: [], error: toErrorMessage(err, 'Could not load contacts') }
   }
-  return { contacts: (data ?? []) as Contact[], error: null }
 }
 
 export async function addContact(
@@ -65,11 +75,19 @@ export async function addContact(
   }
 
   const payload = { ...toPayload(input), user_id: userId }
-  const { data, error } = await supabase.from('contacts').insert(payload).select(COLUMNS).single()
-  if (error) {
-    return { contact: null, error: error.message }
+  try {
+    const { data, error } = await supabase
+      .from('contacts')
+      .insert(payload)
+      .select(COLUMNS)
+      .single()
+    if (error) {
+      return { contact: null, error: error.message }
+    }
+    return { contact: data as Contact, error: null }
+  } catch (err) {
+    return { contact: null, error: toErrorMessage(err, 'Could not add contact') }
   }
-  return { contact: data as Contact, error: null }
 }
 
 export async function updateContact(
@@ -86,12 +104,16 @@ export async function updateContact(
     return { error: 'Not signed in' }
   }
 
-  const { error } = await supabase
-    .from('contacts')
-    .update(toPayload(input))
-    .eq('id', id)
-    .eq('user_id', userId)
-  return { error: error?.message ?? null }
+  try {
+    const { error } = await supabase
+      .from('contacts')
+      .update(toPayload(input))
+      .eq('id', id)
+      .eq('user_id', userId)
+    return { error: error?.message ?? null }
+  } catch (err) {
+    return { error: toErrorMessage(err, 'Could not update contact') }
+  }
 }
 
 export async function deleteContact(id: string): Promise<{ error: string | null }> {
@@ -100,6 +122,10 @@ export async function deleteContact(id: string): Promise<{ error: string | null 
     return { error: 'Not signed in' }
   }
 
-  const { error } = await supabase.from('contacts').delete().eq('id', id).eq('user_id', userId)
-  return { error: error?.message ?? null }
+  try {
+    const { error } = await supabase.from('contacts').delete().eq('id', id).eq('user_id', userId)
+    return { error: error?.message ?? null }
+  } catch (err) {
+    return { error: toErrorMessage(err, 'Could not delete contact') }
+  }
 }

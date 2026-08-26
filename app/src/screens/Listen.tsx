@@ -44,6 +44,8 @@ export function Listen() {
   }
 
   function handleRevoke() {
+    sessionRef.current?.stop()
+    sessionRef.current = null
     revokeVoiceConsent()
     setConsented(false)
     setOutcome(null)

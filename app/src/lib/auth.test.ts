@@ -48,6 +48,14 @@ describe('auth helpers', () => {
     expect(result.error).toBe('Email already registered')
   })
 
+  it('signUpWithEmail returns a message when sign-up throws (e.g. offline)', async () => {
+    mockedAuth.signUp.mockRejectedValue(new Error('Failed to fetch'))
+
+    const result = await signUpWithEmail('a@b.com', 'secret123', 'Aarav Sharma')
+
+    expect(result.error).toBe('Failed to fetch')
+  })
+
   it('signInWithEmail calls signInWithPassword with the credentials', async () => {
     mockedAuth.signInWithPassword.mockResolvedValue({
       data: { user: null, session: null },

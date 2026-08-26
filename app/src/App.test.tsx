@@ -103,4 +103,12 @@ describe('App', () => {
       await screen.findByRole('heading', { name: /emergency contacts/i }),
     ).toBeInTheDocument()
   })
+
+  it('redirects unknown routes to the app instead of rendering a blank shell', async () => {
+    mockedAuth.getSession.mockResolvedValue({ data: { session: null }, error: null })
+
+    renderApp(['/definitely-not-a-route'])
+
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+  })
 })
