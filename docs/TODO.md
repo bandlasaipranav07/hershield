@@ -42,7 +42,7 @@ All items are pending. Checkmarks appear only when a task is actually done.
 - [x] Intent classifier (TF-IDF + LR) + unit tests
 - [x] Risk engine + policy + unit tests
 - [x] Emergency event creation + notification simulation
-- [ ] Emergency dashboard
+- [x] Emergency dashboard
 - [ ] Testing dashboard (fixtures + metrics table)
 
 ## Phase 3 — Experiment & testing

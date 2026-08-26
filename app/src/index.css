@@ -279,3 +279,161 @@ body {
   color: #555;
   font-size: 0.9rem;
 }
+
+.dashboard {
+  flex: 1;
+  padding: 2rem 1.5rem;
+}
+
+.dashboard h1 {
+  margin: 0 0 1rem;
+}
+
+.sos-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 1rem;
+  border: 1px solid #c9ced9;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.sos-button {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: none;
+  background: #b42318;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  align-self: center;
+}
+
+.sos-button:disabled,
+.sos-button-small:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sos-confirm p {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.sos-button-small {
+  padding: 0.6rem 1.1rem;
+  border: none;
+  border-radius: 8px;
+  background: #b42318;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sim-summary {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  background: #ecfdf3;
+  border: 1px solid #abefc6;
+  border-radius: 8px;
+  color: #067647;
+  font-weight: 600;
+}
+
+.event-list {
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.event-card {
+  border: 1px solid #c9ced9;
+  border-left-width: 5px;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.event-card.risk-high {
+  border-left-color: #b42318;
+}
+
+.event-card.risk-medium {
+  border-left-color: #dc6803;
+}
+
+.event-card.risk-low {
+  border-left-color: #067647;
+}
+
+.event-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.risk-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  color: #fff;
+}
+
+.risk-badge-high {
+  background: #b42318;
+}
+
+.risk-badge-medium {
+  background: #dc6803;
+}
+
+.risk-badge-low {
+  background: #067647;
+}
+
+.event-head + time {
+  display: block;
+  color: #555;
+  font-size: 0.85rem;
+  margin: 0.15rem 0 0.5rem;
+}
+
+.event-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.event-details dt {
+  font-weight: 600;
+}
+
+.event-details dd {
+  margin: 0;
+}
+
+.event-card blockquote {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-style: italic;
+}
+
+.reason-line {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #374151;
+}

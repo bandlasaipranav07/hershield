@@ -14,6 +14,9 @@ export function Home() {
       <p>
         <Link to="/listen">Voice check (demo)</Link>
       </p>
+      <p>
+        <Link to="/dashboard">Dashboard &amp; SOS</Link>
+      </p>
       <button type="button" onClick={() => void signOut()}>
         Sign out
       </button>
