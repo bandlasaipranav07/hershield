@@ -37,7 +37,7 @@ All items are pending. Checkmarks appear only when a task is actually done.
 ## Phase 2 — MVP features (in order)
 - [x] Auth (login/register, protected routes)
 - [x] Emergency contacts CRUD
-- [ ] Location service (geolocation wrapper)
+- [x] Location service (geolocation wrapper)
 - [ ] Voice input + ASR wrapper + consent screen
 - [ ] Intent classifier (TF-IDF + LR) + unit tests
 - [ ] Risk engine + policy + unit tests
