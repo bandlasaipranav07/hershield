@@ -218,3 +218,64 @@ body {
   background: #b42318;
   color: #fff;
 }
+
+.listen {
+  flex: 1;
+  padding: 2rem 1.5rem;
+}
+
+.listen h1 {
+  margin: 0 0 1rem;
+}
+
+.consent-card,
+.transcript-card {
+  border: 1px solid #c9ced9;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.consent-card h2,
+.transcript-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.consent-points {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.button-secondary {
+  align-self: center;
+  padding: 0.6rem 1.1rem;
+  border-radius: 8px;
+  background: #e5e7eb;
+  color: #111827;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.form-actions .button-danger-text {
+  background: transparent;
+  color: #b42318;
+  font-weight: 600;
+}
+
+.transcript-card blockquote {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-style: italic;
+}
+
+.confidence-line {
+  margin: 0;
+  color: #555;
+  font-size: 0.9rem;
+}

@@ -38,7 +38,7 @@ All items are pending. Checkmarks appear only when a task is actually done.
 - [x] Auth (login/register, protected routes)
 - [x] Emergency contacts CRUD
 - [x] Location service (geolocation wrapper)
-- [ ] Voice input + ASR wrapper + consent screen
+- [x] Voice input + ASR wrapper + consent screen
 - [ ] Intent classifier (TF-IDF + LR) + unit tests
 - [ ] Risk engine + policy + unit tests
 - [ ] Emergency event creation + notification simulation

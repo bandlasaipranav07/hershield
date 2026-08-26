@@ -11,6 +11,9 @@ export function Home() {
       <p>
         <Link to="/contacts">Emergency contacts</Link>
       </p>
+      <p>
+        <Link to="/listen">Voice check (demo)</Link>
+      </p>
       <button type="button" onClick={() => void signOut()}>
         Sign out
       </button>

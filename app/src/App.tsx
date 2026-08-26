@@ -5,6 +5,7 @@ import { Login } from './screens/Login'
 import { Register } from './screens/Register'
 import { Home } from './screens/Home'
 import { Contacts } from './screens/Contacts'
+import { Listen } from './screens/Listen'
 
 export default function App() {
   return (
@@ -27,6 +28,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <Contacts />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/listen"
+            element={
+              <RequireAuth>
+                <Listen />
               </RequireAuth>
             }
           />
