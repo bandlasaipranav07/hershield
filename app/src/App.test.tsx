@@ -13,8 +13,19 @@ vi.mock('./lib/supabase', () => ({
       signUp: vi.fn(),
       signOut: vi.fn(),
     },
+    from: vi.fn(() => makeEmptyQueryChain()),
   },
 }))
+
+function makeEmptyQueryChain() {
+  const result = { data: [], error: null }
+  const chain: Record<string, unknown> = {}
+  for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'order', 'single']) {
+    chain[method] = () => chain
+  }
+  chain.then = (onFulfilled: (value: typeof result) => unknown) => onFulfilled(result)
+  return chain
+}
 
 import { supabase } from './lib/supabase'
 
@@ -70,5 +81,26 @@ describe('App', () => {
     renderApp(['/'])
 
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+  })
+
+  it('redirects to /login when opening /contacts without a session', async () => {
+    mockedAuth.getSession.mockResolvedValue({ data: { session: null }, error: null })
+
+    renderApp(['/contacts'])
+
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+  })
+
+  it('shows the contacts screen when signed in', async () => {
+    mockedAuth.getSession.mockResolvedValue({
+      data: { session: makeSession(makeUser('a@b.com')) },
+      error: null,
+    })
+
+    renderApp(['/contacts'])
+
+    expect(
+      await screen.findByRole('heading', { name: /emergency contacts/i }),
+    ).toBeInTheDocument()
   })
 })

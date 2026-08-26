@@ -35,8 +35,8 @@ All items are pending. Checkmarks appear only when a task is actually done.
 - [ ] MANUAL (team): create Supabase project, run `0001_init.sql`, fill `app/.env`, run RLS checks
 
 ## Phase 2 — MVP features (in order)
-- [ ] Auth (login/register, protected routes)
-- [ ] Emergency contacts CRUD
+- [x] Auth (login/register, protected routes)
+- [x] Emergency contacts CRUD
 - [ ] Location service (geolocation wrapper)
 - [ ] Voice input + ASR wrapper + consent screen
 - [ ] Intent classifier (TF-IDF + LR) + unit tests

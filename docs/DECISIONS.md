@@ -28,6 +28,8 @@ Every important decision gets a row: what we decided, why, what we gave up, and 
 | 20 | 2026-08-20 | `lib/supabase.ts` throws on missing env vars (fail fast) | Without keys the app can't talk to Supabase; clear message beats silent 404s | App won't render until `.env` filled | ✅ Done |
 | 21 | 2026-08-20 | `signInWithEmail` catches thrown AuthError | supabase-js v2.112 throws (not returns) on invalid login credentials | — | ✅ Done |
 | 22 | 2026-08-20 | RLS verification shipped as manual SQL + browser checklist in supabase/README.md; automated RLS integration test deferred to CI/test-DB phase | No test database exists yet; manual proof is honest and doable now | RLS verified manually, not automated | ✅ Deferred (documented) |
+| 23 | 2026-08-26 | Contacts CRUD: client supplies `user_id` from the local session on insert; update/delete filter by `id` AND `user_id`; RLS remains the real ownership guard (`user_id = auth.uid()`) | Schema has no default for `user_id`, so the insert payload must include it; defense in depth for non-insert ops | If session user_id ever disagreed with JWT, RLS `with check` rejects the write (fails safe) | ✅ Done |
+| 24 | 2026-08-26 | Contacts feature adds zero new dependencies; tests mock `supabase.from()` with a chainable query builder and mock `lib/contacts` at module boundary for screen tests | Keeps dependency list minimal per repo rule; unit tests stay hermetic (no DB) | Mocks must mirror supabase-js chain shape; drift caught by build+tests | ✅ Done |
 
 ## Rules for future entries
 

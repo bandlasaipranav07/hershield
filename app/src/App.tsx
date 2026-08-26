@@ -4,6 +4,7 @@ import { RequireAuth } from './components/RequireAuth'
 import { Login } from './screens/Login'
 import { Register } from './screens/Register'
 import { Home } from './screens/Home'
+import { Contacts } from './screens/Contacts'
 
 export default function App() {
   return (
@@ -18,6 +19,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <Home />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/contacts"
+            element={
+              <RequireAuth>
+                <Contacts />
               </RequireAuth>
             }
           />
