@@ -39,7 +39,7 @@ All items are pending. Checkmarks appear only when a task is actually done.
 - [x] Emergency contacts CRUD
 - [x] Location service (geolocation wrapper)
 - [x] Voice input + ASR wrapper + consent screen
-- [ ] Intent classifier (TF-IDF + LR) + unit tests
+- [x] Intent classifier (TF-IDF + LR) + unit tests
 - [ ] Risk engine + policy + unit tests
 - [ ] Emergency event creation + notification simulation
 - [ ] Emergency dashboard
