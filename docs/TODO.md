@@ -41,7 +41,7 @@ All items are pending. Checkmarks appear only when a task is actually done.
 - [x] Voice input + ASR wrapper + consent screen
 - [x] Intent classifier (TF-IDF + LR) + unit tests
 - [x] Risk engine + policy + unit tests
-- [ ] Emergency event creation + notification simulation
+- [x] Emergency event creation + notification simulation
 - [ ] Emergency dashboard
 - [ ] Testing dashboard (fixtures + metrics table)
 

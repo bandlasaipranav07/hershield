@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { getCurrentUserId } from './session'
 
 export interface Contact {
   id: string
@@ -41,11 +42,6 @@ export function validateContactInput(input: ContactInput): string | null {
   return null
 }
 
-async function getUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession()
-  return data.session?.user.id ?? null
-}
-
 export async function listContacts(): Promise<{ contacts: Contact[]; error: string | null }> {
   try {
     const { data, error } = await supabase
@@ -69,7 +65,7 @@ export async function addContact(
     return { contact: null, error: invalid }
   }
 
-  const userId = await getUserId()
+  const userId = await getCurrentUserId()
   if (!userId) {
     return { contact: null, error: 'Not signed in' }
   }
@@ -99,7 +95,7 @@ export async function updateContact(
     return { error: invalid }
   }
 
-  const userId = await getUserId()
+  const userId = await getCurrentUserId()
   if (!userId) {
     return { error: 'Not signed in' }
   }
@@ -117,7 +113,7 @@ export async function updateContact(
 }
 
 export async function deleteContact(id: string): Promise<{ error: string | null }> {
-  const userId = await getUserId()
+  const userId = await getCurrentUserId()
   if (!userId) {
     return { error: 'Not signed in' }
   }
