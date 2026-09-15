@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { Listen } from './Listen'
+
+// ── Module mocks ────────────────────────────────────────────────────────────
 
 vi.mock('../lib/consent', () => ({
   hasVoiceConsent: vi.fn(),
@@ -15,14 +17,54 @@ vi.mock('../lib/voice', () => ({
   startVoiceCapture: vi.fn(),
 }))
 
+// Mock the microphone capture support check so tests don't depend on the
+// browser Web Audio API being present in jsdom.
+vi.mock('../lib/audio/microphoneCapture', () => ({
+  isMicrophoneCaptureSupported: vi.fn(),
+  MicrophoneCaptureAdapter: vi.fn(),
+}))
+
+// Mock the runtime so ARM/DISARM calls are tracked without real audio I/O.
+vi.mock('../lib/core/runtime', () => {
+  const arm = vi.fn().mockReturnValue({ success: true, previousState: 'DISARMED', currentState: 'ARMED' })
+  const disarm = vi.fn().mockResolvedValue({ success: true, previousState: 'ARMED', currentState: 'DISARMED' })
+  const isArmedGetter = vi.fn().mockReturnValue(false)
+  const subscribe = vi.fn().mockReturnValue(() => {})
+  const stateMachine = {
+    arm,
+    disarm,
+    get isArmed() { return isArmedGetter() },
+    subscribe,
+  }
+  const startAudioCapture = vi.fn().mockResolvedValue(true)
+  const stopAudioCapture = vi.fn()
+  const setCurrentTranscript = vi.fn()
+
+  // Must use a regular function (not arrow) so `new HerShieldRuntime(...)` works.
+  // oxlint-disable-next-line react/no-this-in-sfc
+  function HerShieldRuntime(this: Record<string, unknown>) {
+    // oxlint-disable-next-line react/no-this-in-sfc
+    this.stateMachine = stateMachine
+    // oxlint-disable-next-line react/no-this-in-sfc
+    this.startAudioCapture = startAudioCapture
+    // oxlint-disable-next-line react/no-this-in-sfc
+    this.stopAudioCapture = stopAudioCapture
+    // oxlint-disable-next-line react/no-this-in-sfc
+    this.setCurrentTranscript = setCurrentTranscript
+  }
+
+  return { HerShieldRuntime }
+})
+
 import { grantVoiceConsent, hasVoiceConsent, revokeVoiceConsent } from '../lib/consent'
-import { isVoiceSupported, startVoiceCapture, type VoiceOutcome } from '../lib/voice'
+import { isVoiceSupported } from '../lib/voice'
+import { isMicrophoneCaptureSupported } from '../lib/audio/microphoneCapture'
 
 const mockedGrant = vi.mocked(grantVoiceConsent)
 const mockedHasConsent = vi.mocked(hasVoiceConsent)
 const mockedRevoke = vi.mocked(revokeVoiceConsent)
-const mockedSupported = vi.mocked(isVoiceSupported)
-const mockedStart = vi.mocked(startVoiceCapture)
+const mockedSpeechSupported = vi.mocked(isVoiceSupported)
+const mockedMicSupported = vi.mocked(isMicrophoneCaptureSupported)
 
 function renderListen() {
   return render(
@@ -32,20 +74,32 @@ function renderListen() {
   )
 }
 
+// ── Tests ────────────────────────────────────────────────────────────────────
+
 describe('Listen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockedHasConsent.mockReturnValue(false)
-    mockedSupported.mockReturnValue(true)
+    mockedSpeechSupported.mockReturnValue(true)
+    mockedMicSupported.mockReturnValue(true)
   })
 
   it('shows the unsupported notice when the browser lacks the Web Speech API', () => {
-    mockedSupported.mockReturnValue(false)
+    mockedSpeechSupported.mockReturnValue(false)
 
     renderListen()
 
     expect(screen.getByRole('alert')).toHaveTextContent(/does not support/i)
-    expect(screen.queryByRole('button', { name: /start listening/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /arm monitoring/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the unsupported notice when the browser lacks the Web Audio API', () => {
+    mockedMicSupported.mockReturnValue(false)
+
+    renderListen()
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/does not support the web audio api/i)
+    expect(screen.queryByRole('button', { name: /arm monitoring/i })).not.toBeInTheDocument()
   })
 
   it('shows the consent panel before any mic use', () => {
@@ -65,41 +119,13 @@ describe('Listen', () => {
     expect(mockedGrant).toHaveBeenCalledOnce()
   })
 
-  it('starts a capture session and shows the transcript with confidence', async () => {
-    const user = userEvent.setup()
+  it('shows the ARM button after consent is granted', () => {
     mockedHasConsent.mockReturnValue(true)
-    let resolveResult!: (value: VoiceOutcome) => void
-    const result = new Promise<VoiceOutcome>((resolve) => {
-      resolveResult = resolve
-    })
-    mockedStart.mockReturnValue({
-      result,
-      stop: vi.fn(),
-    })
 
     renderListen()
-    await user.click(screen.getByRole('button', { name: 'Start listening' }))
-    expect(mockedStart).toHaveBeenCalledOnce()
-    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument()
 
-    resolveResult({ transcript: 'please help me', confidence: 0.91, error: null })
-    expect(await screen.findByText('please help me')).toBeInTheDocument()
-    expect(screen.getByText(/0\.91/)).toBeInTheDocument()
-    expect(screen.getByText(/reported only/i)).toBeInTheDocument()
-  })
-
-  it('shows a recognizer error as an alert', async () => {
-    const user = userEvent.setup()
-    mockedHasConsent.mockReturnValue(true)
-    mockedStart.mockReturnValue({
-      result: Promise.resolve({ transcript: '', confidence: null, error: 'Microphone permission denied' }),
-      stop: vi.fn(),
-    })
-
-    renderListen()
-    await user.click(screen.getByRole('button', { name: 'Start listening' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Microphone permission denied')
+    expect(screen.getByRole('button', { name: /arm monitoring/i })).toBeInTheDocument()
+    expect(screen.getByText(/disarmed/i)).toBeInTheDocument()
   })
 
   it('revokes consent and returns to the consent panel', async () => {
@@ -113,33 +139,14 @@ describe('Listen', () => {
     expect(await screen.findByRole('heading', { name: /before we use your microphone/i })).toBeInTheDocument()
   })
 
-  it('stops an active capture when Stop is clicked', async () => {
+  it('shows DISARM button after arming', async () => {
     const user = userEvent.setup()
     mockedHasConsent.mockReturnValue(true)
-    const stop = vi.fn()
-    mockedStart.mockReturnValue({ result: new Promise(() => {}), stop })
 
     renderListen()
-    await user.click(screen.getByRole('button', { name: 'Start listening' }))
-    await user.click(screen.getByRole('button', { name: 'Stop' }))
+    await user.click(screen.getByRole('button', { name: /arm monitoring/i }))
 
-    await waitFor(() => expect(stop).toHaveBeenCalledOnce())
-  })
-
-  it('stops an active capture when consent is revoked mid-listen', async () => {
-    const user = userEvent.setup()
-    mockedHasConsent.mockReturnValue(true)
-    const stop = vi.fn()
-    mockedStart.mockReturnValue({ result: new Promise(() => {}), stop })
-
-    renderListen()
-    await user.click(screen.getByRole('button', { name: 'Start listening' }))
-    await user.click(screen.getByRole('button', { name: /revoke mic consent/i }))
-
-    expect(stop).toHaveBeenCalledOnce()
-    expect(mockedRevoke).toHaveBeenCalledOnce()
-    expect(
-      await screen.findByRole('heading', { name: /before we use your microphone/i }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /disarm/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /arm monitoring/i })).not.toBeInTheDocument()
   })
 })

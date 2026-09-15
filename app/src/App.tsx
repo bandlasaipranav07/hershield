@@ -8,6 +8,8 @@ import { Contacts } from './screens/Contacts'
 import { Listen } from './screens/Listen'
 import { Dashboard } from './screens/Dashboard'
 
+import { TestingDashboard } from './screens/TestingDashboard'
+
 export default function App() {
   return (
     <AuthProvider>
@@ -45,6 +47,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <Dashboard />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/testing"
+            element={
+              <RequireAuth>
+                <TestingDashboard />
               </RequireAuth>
             }
           />
