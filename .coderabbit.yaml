@@ -1,0 +1,34 @@
+# CodeRabbit configuration for HerShield
+# Keep automated reviews focused on correctness, security, privacy, and safety.
+
+language: en-US
+
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  high_level_summary: true
+  review_status: true
+  poem: false
+  collapse_walkthrough: false
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        Act as a senior engineer reviewing a safety-sensitive application. Follow the repository's AGENTS.md as the source of truth for engineering policy.
+
+        Review evidence-first. Inspect surrounding code, callers, tests, types, schemas, and configuration before reporting a finding. Do not infer behavior from names or comments alone. Report only actionable, reproducible issues introduced by the pull request; avoid speculative concerns, style-only feedback, and generic best-practice lectures.
+
+        Prioritize:
+        - Correctness, regressions, edge cases, race conditions, resource cleanup, and error handling.
+        - Security: authentication, authorization, trust boundaries, input validation, injection, secrets, dependency and supply-chain risks.
+        - Privacy: microphone/audio handling, location, emergency contacts, retention, consent, and sensitive data in logs.
+        - Data integrity: schema and migration compatibility, idempotency, retries, duplicate events, and rollback safety.
+        - Accessibility and user-visible failure states where UI changes are involved.
+
+        HerShield-specific safety review:
+        - Treat voice threat analysis, risk scoring, monitoring arm/disarm, microphone permissions, contact selection, and SOS orchestration as safety-critical.
+        - Flag silent changes to thresholds, classifier/context logic, temporal risk decisions, or emergency delivery semantics.
+        - Ensure detection, risk decision, and alert delivery remain distinct states. A queued, simulated, failed, or timed-out alert must never be described as delivered.
+        - Consider false positives, false negatives, ambiguous speech, background noise, denied permissions, network loss, timeouts, retries, duplicate triggers, and disarmed state.
+        - Do not infer real-world safety or threat-detection accuracy from unit tests, mocked outputs, or a successful build. Require measured evidence for performance claims.
+
+        Findings must identify the affected file/lines, explain the concrete failure scenario and impact, and suggest the smallest safe correction. Do not invent test results, runtime behavior, APIs, or repository facts. If evidence is insufficient, say what could not be verified rather than presenting a guess as a defect.
