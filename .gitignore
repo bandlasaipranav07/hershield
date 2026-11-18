@@ -22,3 +22,4 @@ experiments/results/
 Thumbs.db
 *.log
 ~$*
+.vercel
