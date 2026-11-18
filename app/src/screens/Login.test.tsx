@@ -7,6 +7,8 @@ import { Login } from './Login'
 import { makeAuthError, makeSession, makeSubscription, makeUser } from '../test/factories'
 
 vi.mock('../lib/supabase', () => ({
+  isSupabaseConfigured: true,
+  isDemoModeEnabled: false,
   supabase: {
     auth: {
       getSession: vi.fn(),
@@ -48,6 +50,7 @@ describe('Login', () => {
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /launch instant demo mode/i })).not.toBeInTheDocument()
   })
 
   it('submits the entered credentials', async () => {

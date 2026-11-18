@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HerShield — Soft Lavender & Frosted Glass Edition</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    :root {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --bg-canvas: #ebe6f5;
+      --bg: #f7f5fb;
+      --card-glass: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(255, 255, 255, 0.9);
+      --primary: #7c3aed;
+      --danger: #e11d48;
+      --text: #1b172a;
+      --text-muted: #5e5774;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: 
+        radial-gradient(ellipse at 12% 12%, rgba(196, 181, 253, 0.5), transparent 45%),
+        radial-gradient(ellipse at 88% 88%, rgba(244, 114, 182, 0.3), transparent 50%),
+        radial-gradient(ellipse at 50% 40%, rgba(221, 214, 254, 0.4), transparent 60%),
+        #ebe6f5;
+    }
+
+    @keyframes heroPulse {
+      0% { transform: scale(0.9); opacity: 0.85; }
+      55% { transform: scale(1.15); opacity: 0.1; }
+      100% { transform: scale(1.18); opacity: 0; }
+    }
+    .pulse-ring-1 {
+      animation: heroPulse 2.4s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+    }
+    .pulse-ring-2 {
+      animation: heroPulse 2.4s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+      animation-delay: 0.6s;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-6 text-[#1b172a]">
+
+  <!-- Mobile-First Phone Container (440px) -->
+  <div class="w-full max-w-[440px] bg-[#f7f5fb]/95 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-purple-950/15 border border-white/80 flex flex-col h-[740px] overflow-hidden relative">
+    
+    <!-- DEMO / SIMULATION BANNER -->
+    <div class="bg-gradient-to-r from-amber-100 via-rose-100 to-amber-100 border-b border-amber-200/60 text-amber-900 text-[10px] font-bold tracking-wider text-center py-1 px-3 uppercase shrink-0">
+      DEMO / SIMULATION — no real emergency services are contacted
+    </div>
+
+    <!-- TOP HEADER (Brand & Account) -->
+    <header class="bg-white/85 backdrop-blur-md border-b border-purple-200/50 px-4 py-2.5 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2 cursor-pointer" onclick="switchTab('home')">
+        <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white shadow-md shadow-purple-500/25">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </span>
+        <span class="font-bold text-sm tracking-tight text-[#1b172a]">HerShield</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <div id="top-armed-badge" class="hidden items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-bold">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>ARMED</span>
+          <button onclick="toggleVoiceArm()" class="ml-1 text-[9px] text-rose-600 underline font-semibold">Disarm</button>
+        </div>
+        <span class="text-[11px] text-purple-900/70 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200/60 font-medium">demo@hershield.local</span>
+        <span class="text-[10px] font-semibold text-purple-700 bg-purple-100/60 px-2 py-0.5 rounded-full cursor-pointer hover:bg-purple-200">Sign out</span>
+      </div>
+    </header>
+
+    <!-- MAIN SCROLLABLE VIEWPORT -->
+    <main class="flex-1 overflow-y-auto hide-scrollbar p-3.5 pb-20 space-y-3.5">
+      
+      <!-- SCREEN 1: OVERVIEW (HOME) -->
+      <section id="screen-home" class="space-y-3.5">
+        <div>
+          <span class="text-[10px] font-extrabold tracking-wider text-purple-600 uppercase">YOUR SAFETY SPACE</span>
+          <h1 class="text-xl font-extrabold text-[#1b172a] mt-0.5">Welcome back</h1>
+          <p class="text-xs text-[#5e5774]">Manage your safety tools, trusted contacts, and recent activity.</p>
+        </div>
+
+        <!-- Prominent Emergency Action Hero -->
+        <div class="bg-white/85 backdrop-blur-lg border border-white rounded-2xl p-4 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
+          <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200/70 text-rose-800 text-[10px] font-bold mb-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+            <span>Instant Emergency Trigger</span>
+          </div>
+
+          <div id="sos-idle" class="my-2 flex flex-col items-center">
+            <div class="relative flex items-center justify-center">
+              <span class="pulse-ring-1 absolute w-36 h-36 rounded-full bg-rose-500/20 pointer-events-none"></span>
+              <span class="pulse-ring-2 absolute w-44 h-44 rounded-full bg-rose-500/10 pointer-events-none"></span>
+              <button onclick="armSos()" class="relative z-10 w-24 h-24 rounded-full bg-gradient-to-tr from-rose-600 via-rose-500 to-rose-600 text-white font-black text-2xl shadow-xl shadow-rose-500/35 active:scale-95 transition hover:brightness-105 flex items-center justify-center border-4 border-white">
+                SOS
+              </button>
+            </div>
+            <p class="text-[11px] text-[#8a82a2] mt-2.5">Tap SOS for immediate simulated emergency escalation</p>
+          </div>
+
+          <div id="sos-armed" class="hidden my-2 w-full p-3 bg-rose-50/90 border border-rose-200 rounded-xl flex flex-col items-center">
+            <p class="font-extrabold text-rose-950 text-xs">Trigger emergency now?</p>
+            <p class="text-[10px] text-rose-700 mb-2.5">Contacts will be notified (simulated)</p>
+            <div class="flex gap-2 w-full">
+              <button onclick="triggerSos()" class="flex-1 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold shadow hover:bg-rose-700 active:scale-95 transition">
+                Yes — SOS now
+              </button>
+              <button onclick="cancelSos()" class="flex-1 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-900 text-xs font-semibold active:scale-95 transition">
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          <div id="sos-result" class="hidden mt-2 p-2 w-full bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-[11px] text-center font-bold">
+            Simulated SOS dispatched to 2 contacts!
+          </div>
+        </div>
+
+        <!-- Voice Check Monitor Card -->
+        <div class="bg-white/85 backdrop-blur-lg border border-white rounded-2xl p-3.5 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#5e5774] bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200/50">
+              <span id="voice-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+              <span id="voice-label">Monitoring is off</span>
+            </span>
+            <span class="text-[10px] text-purple-700 font-bold uppercase tracking-wider">Voice Guard</span>
+          </div>
+
+          <h2 class="text-sm font-bold text-[#1b172a] m-0">Voice check</h2>
+          <p class="text-xs text-[#5e5774] leading-relaxed">
+            HerShield does not listen in the background. Review the microphone details and choose when to start a check.
+          </p>
+
+          <button onclick="switchTab('listen')" class="w-full py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-500/20 active:scale-98 transition">
+            Review voice check →
+          </button>
+
+          <div class="pt-2 border-t border-purple-100 flex flex-col text-[10px] text-[#8a82a2]">
+            <strong class="text-[#5e5774]">You stay in control</strong>
+            <span>Voice monitoring starts only after consent and a deliberate tap on ARM.</span>
+          </div>
+        </div>
+
+        <!-- Tools Grid -->
+        <div class="space-y-2">
+          <span class="text-[10px] font-extrabold tracking-wider text-[#8a82a2] uppercase">YOUR TOOLS</span>
+          
+          <div class="space-y-2">
+            <!-- Activity & SOS -->
+            <div onclick="switchTab('dashboard')" class="bg-white/80 hover:bg-white border border-white/90 p-3 rounded-xl flex items-center justify-between cursor-pointer shadow-sm hover:shadow active:scale-98 transition">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div>
+                  <div class="font-bold text-xs text-[#1b172a]">Activity &amp; SOS</div>
+                  <div class="text-[10px] text-[#5e5774]">Review events or open the simulated SOS flow.</div>
+                </div>
+              </div>
+              <span class="text-purple-600 font-bold text-sm">→</span>
+            </div>
+
+            <!-- Contacts -->
+            <div onclick="switchTab('contacts')" class="bg-white/80 hover:bg-white border border-white/90 p-3 rounded-xl flex items-center justify-between cursor-pointer shadow-sm hover:shadow active:scale-98 transition">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div>
+                  <div class="font-bold text-xs text-[#1b172a]">Emergency contacts</div>
+                  <div class="text-[10px] text-[#5e5774]">Add or update the people listed for simulated notifications.</div>
+                </div>
+              </div>
+              <span class="text-purple-600 font-bold text-sm">→</span>
+            </div>
+
+            <!-- Test lab -->
+            <div onclick="switchTab('testing')" class="bg-white/80 hover:bg-white border border-white/90 p-3 rounded-xl flex items-center justify-between cursor-pointer shadow-sm hover:shadow active:scale-98 transition">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L4 17.2A2 2 0 0 0 5.4 21h13.2a2 2 0 0 0 1.4-3.4L14.6 12a2 2 0 0 1-.6-1.4V3"/></svg>
+                </div>
+                <div>
+                  <div class="font-bold text-xs text-[#1b172a]">Test lab</div>
+                  <div class="text-[10px] text-[#5e5774]">Explore sample cases and the research classifier.</div>
+                </div>
+              </div>
+              <span class="text-purple-600 font-bold text-sm">→</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Demo Disclaimer -->
+        <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[10px] text-amber-900 leading-relaxed">
+          <strong class="font-bold text-amber-950">Demo only:</strong> SOS and contact notifications are simulations. HerShield does not contact emergency services.
+        </div>
+      </section>
+
+      <!-- SCREEN 2: VOICE CHECK (LISTEN) -->
+      <section id="screen-listen" class="hidden space-y-3.5">
+        <div>
+          <button onclick="switchTab('home')" class="text-xs font-semibold text-purple-600 hover:underline mb-1">← Back to home</button>
+          <h1 class="text-xl font-extrabold text-[#1b172a]">Voice Threat Analysis</h1>
+          <p class="text-xs text-[#5e5774]">On-device acoustic classifier with transient in-memory privacy buffers.</p>
+        </div>
+
+        <div class="bg-white/85 backdrop-blur-lg border border-white rounded-2xl p-4 shadow-sm flex flex-col items-center text-center">
+          <div id="mic-circle" class="w-20 h-20 rounded-full bg-purple-50 border-2 border-purple-200 text-purple-400 flex items-center justify-center mb-3 transition-all">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </div>
+          <span id="mic-badge" class="px-3 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200 mb-1">DISARMED</span>
+          <p id="mic-desc" class="text-xs text-[#5e5774] mb-3">Press ARM to begin real-time speech and acoustic analysis.</p>
+
+          <button id="arm-action-btn" onclick="toggleVoiceArm()" class="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-500/25 active:scale-98 transition">
+            ARM Monitoring
+          </button>
+        </div>
+
+        <div class="bg-purple-50/70 border border-purple-200/60 rounded-xl p-3 text-xs space-y-1 text-purple-950">
+          <strong class="text-purple-900 font-bold">Privacy Guarantee:</strong>
+          <p class="text-[11px] text-purple-800 leading-relaxed">
+            Audio stays in rolling in-memory buffers (never saved to disk). Before any threat is confirmed, nothing is dispatched.
+          </p>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: ACTIVITY & SOS (DASHBOARD) -->
+      <section id="screen-dashboard" class="hidden space-y-3.5">
+        <div>
+          <button onclick="switchTab('home')" class="text-xs font-semibold text-purple-600 hover:underline mb-1">← Back to home</button>
+          <h1 class="text-xl font-extrabold text-[#1b172a]">Emergency Dashboard</h1>
+          <p class="text-xs text-[#5e5774]">Review logged safety events and manage manual triggers.</p>
+        </div>
+
+        <div id="dash-events" class="space-y-2">
+          <div class="bg-white/85 border border-white p-3 rounded-xl shadow-sm text-xs space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-[#1b172a]">Manual SOS Triggered</span>
+              <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">HIGH RISK</span>
+            </div>
+            <p class="text-[11px] text-[#5e5774]">Source: emergency_hero · Simulated SMS sent to contacts.</p>
+            <span class="text-[10px] text-[#8a82a2]">Nov 16, 11:25 AM</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: CONTACTS -->
+      <section id="screen-contacts" class="hidden space-y-3.5">
+        <div class="flex items-center justify-between">
+          <div>
+            <button onclick="switchTab('home')" class="text-xs font-semibold text-purple-600 hover:underline mb-1">← Back to home</button>
+            <h1 class="text-xl font-extrabold text-[#1b172a]">Emergency Contacts</h1>
+          </div>
+          <button onclick="openContactForm()" class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-sm">+ Add</button>
+        </div>
+
+        <!-- Add form -->
+        <div id="add-contact-box" class="hidden bg-white/95 border border-purple-200 p-3.5 rounded-xl shadow-md space-y-2 text-xs">
+          <span class="font-bold text-purple-900">New Trusted Contact</span>
+          <input id="input-c-name" type="text" placeholder="Full Name" class="w-full p-2 bg-purple-50/50 border border-purple-200 rounded-lg text-xs outline-none focus:border-purple-500">
+          <input id="input-c-phone" type="tel" placeholder="Phone Number" class="w-full p-2 bg-purple-50/50 border border-purple-200 rounded-lg text-xs outline-none focus:border-purple-500">
+          <div class="flex gap-2 pt-1">
+            <button onclick="saveNewContact()" class="flex-1 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold">Save</button>
+            <button onclick="closeContactForm()" class="flex-1 py-1.5 bg-slate-100 text-[#5e5774] rounded-lg text-xs">Cancel</button>
+          </div>
+        </div>
+
+        <div id="contact-roster" class="space-y-2">
+          <div class="bg-white/85 border border-white p-3 rounded-xl shadow-sm flex flex-col gap-2 text-xs">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center">SJ</div>
+                <div>
+                  <div class="font-bold text-[#1b172a]">Sarah Jenkins</div>
+                  <div class="text-[11px] text-[#5e5774]">+1 (555) 234-5678 · Sister</div>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Primary</span>
+            </div>
+            <div class="flex gap-1.5 pt-1 border-t border-purple-100">
+              <a href="sms:+15552345678?body=HerShield%20Emergency%20Test%20Alert" class="flex-1 py-1 px-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center font-bold text-[10px]">📱 Test SMS</a>
+              <a href="https://wa.me/15552345678?text=HerShield%20Emergency%20Test%20Alert" target="_blank" rel="noopener noreferrer" class="flex-1 py-1 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-center font-bold text-[10px]">💬 WhatsApp</a>
+              <a href="tel:+15552345678" class="flex-1 py-1 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-center font-bold text-[10px]">📞 Call</a>
+            </div>
+          </div>
+
+          <div class="bg-white/85 border border-white p-3 rounded-xl shadow-sm flex flex-col gap-2 text-xs">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center">DK</div>
+                <div>
+                  <div class="font-bold text-[#1b172a]">David Kim</div>
+                  <div class="text-[11px] text-[#5e5774]">+1 (555) 876-5432 · Friend</div>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">Secondary</span>
+            </div>
+            <div class="flex gap-1.5 pt-1 border-t border-purple-100">
+              <a href="sms:+15558765432?body=HerShield%20Emergency%20Test%20Alert" class="flex-1 py-1 px-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center font-bold text-[10px]">📱 Test SMS</a>
+              <a href="https://wa.me/15558765432?text=HerShield%20Emergency%20Test%20Alert" target="_blank" rel="noopener noreferrer" class="flex-1 py-1 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-center font-bold text-[10px]">💬 WhatsApp</a>
+              <a href="tel:+15558765432" class="flex-1 py-1 px-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-center font-bold text-[10px]">📞 Call</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: TEST LAB -->
+      <section id="screen-testing" class="hidden space-y-3.5">
+        <div>
+          <button onclick="switchTab('home')" class="text-xs font-semibold text-purple-600 hover:underline mb-1">← Back to home</button>
+          <h1 class="text-xl font-extrabold text-[#1b172a]">Test Lab &amp; Experiments</h1>
+          <p class="text-xs text-[#5e5774]">Interactive classifier and synthetic model benchmark.</p>
+        </div>
+
+        <div class="bg-white/85 border border-white p-3.5 rounded-xl shadow-sm space-y-2 text-xs">
+          <strong class="text-purple-900 font-bold">Interactive Utterance Classifier:</strong>
+          <div class="flex gap-2">
+            <input id="eval-utterance" type="text" placeholder="Type test utterance..." class="flex-1 p-2 bg-purple-50/50 border border-purple-200 rounded-lg text-xs outline-none focus:border-purple-500">
+            <button onclick="evaluateUtterance()" class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold">Run</button>
+          </div>
+          <div id="eval-box" class="hidden p-2.5 rounded-lg bg-purple-50 border border-purple-200 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-purple-950">Classification:</span>
+              <span id="eval-level" class="px-2 py-0.5 rounded font-black text-[10px]"></span>
+            </div>
+            <p id="eval-desc" class="text-[11px] text-purple-900"></p>
+          </div>
+        </div>
+
+        <div class="bg-white/85 border border-white p-3 rounded-xl shadow-sm space-y-2 text-xs">
+          <strong class="text-[#1b172a] font-bold">Model Fixtures Benchmark</strong>
+          <div class="grid grid-cols-2 gap-2 text-[11px]">
+            <div class="p-2 bg-purple-50/50 rounded-lg border border-purple-100">
+              <span class="text-[#5e5774]">Model A Accuracy:</span>
+              <div class="font-extrabold text-purple-900 text-sm">85.7%</div>
+            </div>
+            <div class="p-2 bg-purple-50/50 rounded-lg border border-purple-100">
+              <span class="text-[#5e5774]">Model D (Hybrid):</span>
+              <div class="font-extrabold text-purple-600 text-sm">92.9%</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FROSTED BOTTOM NAVIGATION BAR -->
+    <nav class="absolute bottom-0 left-0 right-0 h-16 bg-white/90 backdrop-blur-xl border-t border-purple-200/60 flex items-center justify-around px-2 z-30">
+      <button onclick="switchTab('home')" id="tab-home" class="flex flex-col items-center gap-1 text-purple-700 font-bold text-[10px]">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Overview</span>
+      </button>
+
+      <button onclick="switchTab('listen')" id="tab-listen" class="flex flex-col items-center gap-1 text-[#8a82a2] font-semibold text-[10px]">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <span>Voice check</span>
+      </button>
+
+      <button onclick="switchTab('dashboard')" id="tab-dashboard" class="flex flex-col items-center gap-1 text-[#8a82a2] font-semibold text-[10px]">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Activity &amp; SOS</span>
+      </button>
+
+      <button onclick="switchTab('contacts')" id="tab-contacts" class="flex flex-col items-center gap-1 text-[#8a82a2] font-semibold text-[10px]">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Contacts</span>
+      </button>
+
+      <button onclick="switchTab('testing')" id="tab-testing" class="flex flex-col items-center gap-1 text-[#8a82a2] font-semibold text-[10px]">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L4 17.2A2 2 0 0 0 5.4 21h13.2a2 2 0 0 0 1.4-3.4L14.6 12a2 2 0 0 1-.6-1.4V3"/></svg>
+        <span>Test lab</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <script>
+    const tabs = ['home', 'listen', 'dashboard', 'contacts', 'testing'];
+    function switchTab(tId) {
+      tabs.forEach(t => {
+        const el = document.getElementById('screen-' + t);
+        const btn = document.getElementById('tab-' + t);
+        if (t === tId) {
+          el.classList.remove('hidden');
+          btn.className = "flex flex-col items-center gap-1 text-purple-700 font-bold text-[10px]";
+        } else {
+          el.classList.add('hidden');
+          btn.className = "flex flex-col items-center gap-1 text-[#8a82a2] font-semibold text-[10px]";
+        }
+      });
+    }
+
+    // SOS Logic
+    function armSos() {
+      document.getElementById('sos-idle').classList.add('hidden');
+      document.getElementById('sos-armed').classList.remove('hidden');
+      document.getElementById('sos-result').classList.add('hidden');
+    }
+    function cancelSos() {
+      document.getElementById('sos-idle').classList.remove('hidden');
+      document.getElementById('sos-armed').classList.add('hidden');
+    }
+    function triggerSos() {
+      document.getElementById('sos-armed').classList.add('hidden');
+      document.getElementById('sos-idle').classList.remove('hidden');
+      const res = document.getElementById('sos-result');
+      res.classList.remove('hidden');
+      res.innerHTML = `
+        <div class="space-y-2 text-left">
+          <p class="font-bold text-rose-700 text-xs">🚨 SOS Incident Created &amp; Logged!</p>
+          <p class="text-[11px] text-[#5e5774]">Dispatched to your emergency contacts. Tap below to send real SMS or WhatsApp:</p>
+          <div class="flex flex-col gap-1.5 pt-1">
+            <a href="sms:+919876543210?body=EMERGENCY%20SOS%20ALERT!%20I%20need%20immediate%20help!%20Sent%20via%20HerShield." class="w-full py-1.5 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center font-bold text-[11px] flex items-center justify-center gap-1 shadow-sm">
+              📱 Send Direct SMS (+91 98765 43210)
+            </a>
+            <a href="https://wa.me/919876543210?text=EMERGENCY%20SOS%20ALERT!%20I%20need%20immediate%20help!%20Sent%20via%20HerShield." target="_blank" rel="noopener noreferrer" class="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-center font-bold text-[11px] flex items-center justify-center gap-1 shadow-sm">
+              💬 Send WhatsApp Distress Alert
+            </a>
+            <a href="tel:+919876543210" class="w-full py-1.5 px-3 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-center font-bold text-[11px] flex items-center justify-center gap-1 shadow-sm">
+              📞 Direct Call Contact
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    // Voice Arm Logic
+    let armed = false;
+    function toggleVoiceArm() {
+      armed = !armed;
+      const circle = document.getElementById('mic-circle');
+      const badge = document.getElementById('mic-badge');
+      const desc = document.getElementById('mic-desc');
+      const btn = document.getElementById('arm-action-btn');
+      const vDot = document.getElementById('voice-dot');
+      const vLabel = document.getElementById('voice-label');
+      const topBadge = document.getElementById('top-armed-badge');
+
+      if (armed) {
+        if (topBadge) {
+          topBadge.classList.remove('hidden');
+          topBadge.classList.add('flex');
+        }
+        circle.className = "w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center mb-3 animate-pulse shadow-lg shadow-emerald-500/20";
+        badge.className = "px-3 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 mb-1";
+        badge.textContent = "ARMED / MONITORING";
+        desc.textContent = "Acoustic monitoring active — audio processed locally in memory.";
+        btn.textContent = "DISARM Monitoring";
+        btn.className = "w-full py-2.5 bg-rose-600 text-white rounded-xl text-xs font-bold shadow transition";
+        vDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+        vLabel.textContent = "Monitoring is active";
+      } else {
+        if (topBadge) {
+          topBadge.classList.add('hidden');
+          topBadge.classList.remove('flex');
+        }
+        circle.className = "w-20 h-20 rounded-full bg-purple-50 border-2 border-purple-200 text-purple-400 flex items-center justify-center mb-3";
+        badge.className = "px-3 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200 mb-1";
+        badge.textContent = "DISARMED";
+        desc.textContent = "Press ARM to begin real-time speech and acoustic analysis.";
+        btn.textContent = "ARM Monitoring";
+        btn.className = "w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-500/25 transition";
+        vDot.className = "w-2 h-2 rounded-full bg-slate-400";
+        vLabel.textContent = "Monitoring is off";
+      }
+    }
+
+    // Contacts
+    function openContactForm() { document.getElementById('add-contact-box').classList.remove('hidden'); }
+    function closeContactForm() { document.getElementById('add-contact-box').classList.add('hidden'); }
+    function saveNewContact() {
+      const name = document.getElementById('input-c-name').value.trim();
+      const phone = document.getElementById('input-c-phone').value.trim();
+      if (!name) return;
+      const roster = document.getElementById('contact-roster');
+      const item = document.createElement('div');
+      item.className = "bg-white/85 border border-white p-3 rounded-xl shadow-sm flex items-center justify-between text-xs";
+      item.innerHTML = `
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center">${name.slice(0, 2).toUpperCase()}</div>
+          <div>
+            <div class="font-bold text-[#1b172a]">${name}</div>
+            <div class="text-[11px] text-[#5e5774]">${phone || 'No phone'} · Trusted</div>
+          </div>
+        </div>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Added</span>
+      `;
+      roster.prepend(item);
+      closeContactForm();
+      document.getElementById('input-c-name').value = '';
+      document.getElementById('input-c-phone').value = '';
+    }
+
+    // Classifier
+    function evaluateUtterance() {
+      const txt = document.getElementById('eval-utterance').value.trim();
+      if (!txt) return;
+      const box = document.getElementById('eval-box');
+      const lvl = document.getElementById('eval-level');
+      const desc = document.getElementById('eval-desc');
+      box.classList.remove('hidden');
+
+      const cues = ['help', 'stop', 'following', 'danger', 'emergency', 'attack', 'kill'];
+      const isThreat = cues.some(c => txt.toLowerCase().includes(c));
+
+      if (isThreat) {
+        lvl.className = "px-2 py-0.5 rounded font-black text-[10px] bg-rose-100 text-rose-800 border border-rose-300";
+        lvl.textContent = "HIGH RISK";
+        desc.textContent = `Distress cues detected in: "${txt}". Recommended Action: ESCALATE incident.`;
+      } else {
+        lvl.className = "px-2 py-0.5 rounded font-black text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300";
+        lvl.textContent = "LOW RISK";
+        desc.textContent = `Conversational utterance: "${txt}". Safe condition detected.`;
+      }
+    }
+  </script>
+</body>
+</html>

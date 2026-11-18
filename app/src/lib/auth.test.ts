@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('./supabase', () => ({
+  isSupabaseConfigured: true,
+  isDemoModeEnabled: false,
   supabase: {
     auth: {
       signUp: vi.fn(),
@@ -88,5 +90,14 @@ describe('auth helpers', () => {
 
     expect(mockedAuth.signOut).toHaveBeenCalledOnce()
     expect(result.error).toBeNull()
+  })
+
+  it('refuses demo sign-in when demo mode is disabled', async () => {
+    const { signInAsDemo } = await import('./auth')
+
+    const result = await signInAsDemo()
+
+    expect(result.error).toEqual(expect.stringMatching(/demo mode is disabled/i))
+    expect(window.localStorage.getItem('hershield_demo_user')).toBeNull()
   })
 })

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  createEmergencyEvent,
   listEmergencyEvents,
   type EmergencyEvent,
 } from '../lib/events'
-import { simulateNotifications } from '../lib/notify'
+import { dispatchIncident } from '../lib/core/incidentDispatcher'
 import { decideAction } from '../lib/policy'
+import { listContacts, type Contact } from '../lib/contacts'
+import { EmergencyContactDispatchModal } from '../components/EmergencyContactDispatchModal'
 
 export function Dashboard() {
   const [events, setEvents] = useState<EmergencyEvent[]>([])
@@ -15,6 +16,8 @@ export function Dashboard() {
   const [armed, setArmed] = useState(false)
   const [sending, setSending] = useState(false)
   const [simSummary, setSimSummary] = useState<string | null>(null)
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [showDispatchModal, setShowDispatchModal] = useState(false)
   const activeRef = useRef(true)
 
   async function refresh() {
@@ -43,30 +46,41 @@ export function Dashboard() {
     setSimSummary(null)
     setSending(true)
 
-    const created = await createEmergencyEvent({
+    const dispatched = await dispatchIncident({
       eventType: 'manual_sos',
       riskLevel: 'HIGH',
       triggerSource: 'manual_sos_button',
       decisionReason: decideAction('HIGH', 'manual_sos').reason,
     })
-    if (created.error || !created.event) {
+    if (!dispatched.incident) {
       if (activeRef.current) {
-        setError(created.error ?? 'Could not create emergency event')
+        setError(dispatched.error ?? 'Could not save emergency event')
         setSending(false)
       }
       return
     }
 
-    const simulation = await simulateNotifications(created.event)
+    const simulation = dispatched.simulation
     if (activeRef.current) {
       setSimSummary(
-        simulation.error
-          ? `Event saved, but notifications failed: ${simulation.error}`
-          : `SIMULATED notifications prepared for ${simulation.notified} contact(s). No real message was sent.`,
+        simulation?.error
+          ? `SOS saved locally; simulated notifications failed: ${simulation.error}`
+          : `SOS saved locally. SIMULATED notifications prepared for ${simulation?.notified ?? 0} contact(s). No real message was sent.`,
       )
       setArmed(false)
       setSending(false)
     }
+
+    try {
+      const contactsRes = await listContacts()
+      if (contactsRes.contacts && contactsRes.contacts.length > 0 && activeRef.current) {
+        setContacts(contactsRes.contacts)
+        setShowDispatchModal(true)
+      }
+    } catch {
+      // Ignore background load error
+    }
+
     await refresh()
   }
 
@@ -101,9 +115,31 @@ export function Dashboard() {
           </div>
         )}
         {simSummary && (
-          <p role="status" className="sim-summary">
-            {simSummary}
-          </p>
+          <div>
+            <p role="status" className="sim-summary">
+              {simSummary}
+            </p>
+            {contacts.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowDispatchModal(true)}
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  background: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.8rem',
+                  borderRadius: '12px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(225, 29, 72, 0.25)',
+                }}
+              >
+                📱 Send Direct SMS / WhatsApp to Contacts ({contacts.length})
+              </button>
+            )}
+          </div>
         )}
       </section>
 
@@ -170,6 +206,13 @@ export function Dashboard() {
             </li>
           ))}
         </ul>
+      )}
+
+      {showDispatchModal && (
+        <EmergencyContactDispatchModal
+          contacts={contacts}
+          onClose={() => setShowDispatchModal(false)}
+        />
       )}
     </div>
   )

@@ -185,6 +185,24 @@ describe('MicrophoneCaptureAdapter', () => {
       expect(adapter.isActive).toBe(true)
     })
 
+  it('emits one-second overlapping windows every 500 ms', async () => {
+    const { adapter, ctx, frames } = buildAdapter()
+    await adapter.start()
+
+    for (let index = 0; index < 4; index++) {
+      fireAudioProcess(ctx._processorNode, new Float32Array(4096).fill(index + 1))
+    }
+    expect(frames).toHaveLength(1)
+    expect(frames[0].samples).toHaveLength(16000)
+
+    fireAudioProcess(ctx._processorNode, new Float32Array(4096).fill(5))
+    fireAudioProcess(ctx._processorNode, new Float32Array(4096).fill(6))
+    expect(frames).toHaveLength(2)
+    expect(frames[1].samples).toHaveLength(16000)
+
+    adapter.stop()
+  })
+
     it('creates AudioContext, AnalyserNode, ScriptProcessorNode and connects source', async () => {
       const { adapter, ctx } = buildAdapter()
       await adapter.start()
@@ -215,7 +233,8 @@ describe('MicrophoneCaptureAdapter', () => {
       const { adapter, ctx, frames } = buildAdapter()
       await adapter.start()
 
-      const samples = new Float32Array([0.1, -0.2, 0.3, -0.4])
+      const samples = new Float32Array(16000)
+      samples.set([0.1, -0.2, 0.3, -0.4])
       fireAudioProcess(ctx._processorNode, samples)
 
       expect(frames).toHaveLength(1)
@@ -235,10 +254,13 @@ describe('MicrophoneCaptureAdapter', () => {
       const { adapter, ctx, frames } = buildAdapter()
       await adapter.start()
 
-      fireAudioProcess(ctx._processorNode, new Float32Array(4))
-      fireAudioProcess(ctx._processorNode, new Float32Array(4))
+      for (let index = 0; index < 4; index++) {
+        fireAudioProcess(ctx._processorNode, new Float32Array(4096))
+      }
+      fireAudioProcess(ctx._processorNode, new Float32Array(4096))
+      fireAudioProcess(ctx._processorNode, new Float32Array(4096))
 
-      expect(ctx._analyserNode.getByteFrequencyData).toHaveBeenCalledTimes(2)
+      expect(ctx._analyserNode.getByteFrequencyData).toHaveBeenCalledTimes(6)
       expect(frames).toHaveLength(2)
     })
 
@@ -246,7 +268,9 @@ describe('MicrophoneCaptureAdapter', () => {
       const { adapter, ctx, frames } = buildAdapter()
       await adapter.start()
 
-      const samples = new Float32Array([0.5, 0.6])
+      const samples = new Float32Array(16000)
+      samples[0] = 0.5
+      samples[1] = 0.6
       fireAudioProcess(ctx._processorNode, samples)
 
       // Mutate original after delivery

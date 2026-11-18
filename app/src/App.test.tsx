@@ -1,10 +1,12 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import App from './App'
 import { makeSession, makeSubscription, makeUser } from './test/factories'
 
 vi.mock('./lib/supabase', () => ({
+  isSupabaseConfigured: true,
+  isDemoModeEnabled: false,
   supabase: {
     auth: {
       getSession: vi.fn(),
@@ -73,6 +75,9 @@ describe('App', () => {
     renderApp()
 
     expect(await screen.findByText('Signed in as a@b.com')).toBeInTheDocument()
+    expect(screen.getByText('Monitoring is off')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Review voice check' })).toHaveAttribute('href', '/listen')
+    expect(screen.getByText(/HerShield does not contact emergency services/i)).toBeInTheDocument()
   })
 
   it('redirects to /login when navigating to a protected route without a session', async () => {
@@ -102,6 +107,8 @@ describe('App', () => {
     expect(
       await screen.findByRole('heading', { name: /emergency contacts/i }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Voice check' })).toHaveAttribute('href', '/listen')
   })
 
   it('redirects unknown routes to the app instead of rendering a blank shell', async () => {

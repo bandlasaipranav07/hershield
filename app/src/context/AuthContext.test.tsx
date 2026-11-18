@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './AuthContext'
 import { makeSession, makeSubscription, makeUser } from '../test/factories'
 
 vi.mock('../lib/supabase', () => ({
+  isSupabaseConfigured: true,
+  isDemoModeEnabled: false,
   supabase: {
     auth: {
       getSession: vi.fn(),

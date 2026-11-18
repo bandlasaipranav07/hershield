@@ -1,90 +1,40 @@
-# HerShield — Privacy
+# HerShield — Privacy and Data Boundaries
 
-**Status:** Draft v1 · **Date:** 2026-08-20
+**Last reviewed:** 2026-10-29
 
-**Golden rule:** We do not claim this design is "perfectly private". We document exactly what data exists, why, where it lives, how long, who can see it, and when it is transmitted. Every choice is a trade-off and we say which trade-off we made.
+HerShield is a browser research/demo application. This document describes the current code path; it is not a privacy certification or a promise of production suitability.
 
----
+## What the browser handles
 
-## 1. Privacy goal (PROPOSED)
-
-> Normal operation should avoid continuously uploading raw audio, location history, or personal conversations.
-> Audio is processed locally where possible and discarded if no emergency is detected.
-
-**Feasibility note (RESEARCH-BACKED):** on-device processing is realistic — whisper.cpp runs transcription fully locally (no outbound network calls) [S13]; Picovoice Porcupine advertises fully on-device audio processing [S12]; E-Sentinel performs its decision logic on-device for privacy [S22]. So local-first is achievable in principle. BUT our MVP is a web app, which limits how local we can be (see section 5).
-
-## 2. Target architecture (PROPOSED)
-
-```
-Device (browser)
-  │  user grants microphone permission
-  ▼
-Local buffer (in-browser, not uploaded during normal operation)
-  ▼
-Speech recognition (MVP: browser SpeechRecognition API; see section 5)
-  ▼
-Emergency detected? (intent classifier + risk engine)
-   ├─ NO  → discard temporary audio/transcript, keep nothing
-   └─ YES → send MINIMUM required info to backend (structured JSON, not raw audio)
-                ▼
-          Supabase backend (contacts, event, location)
-                ▼
-          Emergency contacts notified (email/SMS/push - simulated in MVP)
-```
-
-## 3. Data inventory (be explicit)
-
-| Data | Collected? | Why | Stored where | Retention | Who can access |
-|---|---|---|---|---|---|
-| Profile (name, email/phone) | Yes | authentication, contact identity | Supabase (auth + profiles table) | Until account deletion | user + app admins (team) |
-| Emergency contacts | Yes | to notify in an emergency | Supabase | Until user edits/deletes | user only (RLS) |
-| Location (during SOS or journey) | Only when an event/journey is active | to send help | Supabase event record | Deleted after event closure or N days (see policy) | user, contacts who are notified, team admins |
-| Raw audio | No (normal operation) | — | none | n/a | n/a |
-| **Transcript** | Only if emergency detected (or user-requested test) | intent classification + explainability | Supabase event record (may store summary only) | Same as event | contacts/responders in an active event |
-| ASR confidence / classifier scores | Yes, with the event | explainability + evaluation | Supabase event record | Same as event | team + user |
-| User session / trigger history | Minimal in-memory only | repeated-trigger signal | RAM only, not persisted | End of session | n/a |
-
-**Key decision (PROPOSED):** In the MVP we do NOT store raw audio at all. We store transcript text or a short summary only when an emergency event is created.
-
-## 4. When data is transmitted
-
-| Trigger | What goes to the server |
-|---|---|
-| Normal listening (no keyword) | Nothing. All processing in-browser. |
-| Keyword detected, but intent LOW / no escalation | Nothing persisted. In-browser discard. |
-| MEDIUM (confirmation flow) | Nothing until the user fails to confirm. |
-| HIGH escalation or manual SOS | Structured JSON: user id, event type, risk level, transcript (or summary), location, timestamp. |
-
-**Documented limitation:** "Nothing transmitted" depends on the speech recognizer. The browser SpeechRecognition API performs recognition using the browser's built-in service (per MDN docs [S26]), which for Chrome historically involves Google's cloud service. This is a real privacy leak we must document and show in the UI ("Speech is processed by your browser's speech service"). We will display a one-time consent screen.
-
-## 5. MVP reality vs. privacy goal (honest)
-
-Because the MVP is a **web app**:
-
-1. SpeechRecognition in browsers is a built-in feature; the transcript is produced by the browser, and for Chrome this is cloud-based. **This conflicts with the "never upload audio" ideal** — we disclose it. It does not upload to OUR servers; it may go to the browser vendor. We cannot confirm the exact retention by browser vendors; we will show a consent screen and keep the audio capture window short.
-2. A fully private offline design requires on-device ASR (whisper.cpp on-device [S13]) or a native app — this is **Future Work**, not MVP.
-3. Because of (1), our **privacy contribution for the MVP is limited to**: never storing raw audio, minimal structured transmission, discard-on-no-emergency, and clear user consent. That is honest but modest.
-
-## 6. Data protection controls (SECURITY-RELEVANT)
-
-| Control | Where | Detail |
+| Data | Current handling | Boundary |
 |---|---|---|
-| Auth | Supabase Auth [S24] | Email/password. No auth = no data access. |
-| Row Level Security (RLS) | Supabase | Every table policy written so users only read/write their own rows. Contacts table: user owns their rows. Event table: event owner + authorized responder role. We will write these policies with tests. |
-| Secrets | NEVER in frontend code | Supabase anon key is public by design; service-role key stays server-side. No API keys committed to git (see SECURITY section of proposal). |
-| Location | Permission-gated | Geolocation only used when a journey/SOS is active; user can revoke. |
-| Audio | Not stored | See table above. |
-| Deletion | Implemented | User "delete account" removes profile + their events (hard delete after grace period). Retention policy documented and enforced by a background job or manual script (MVP). |
-| Abuse prevention | Rate limiting / cooldown | Repeated automated SOS spam: we add a cooldown between notifications (PROPOSED, defined in TESTING.md). |
+| Supabase account | Email/password session through Supabase Auth when configured | Hosted authentication and policies have not been live-verified in this checkout. |
+| Demo identity | Fixed demo user stored in browser local storage | Enabled only in Vite development, with no valid Supabase configuration and `VITE_DEMO_MODE=true`. |
+| Contacts and browser events | Supabase when configured; otherwise owner-scoped browser storage | Browser storage is local to a browser profile/device and can be cleared outside the app. |
+| Incident record | Owner-tagged IndexedDB record first; includes incident type, risk, transcript, context, optional location, and timestamps | Remains on the device when offline. No account-level deletion/retention workflow is implemented. |
+| Microphone samples | Short-lived in-memory audio buffers while armed | Raw samples are not written to localStorage, IndexedDB, or the database. Buffers are wiped on disarm. |
+| Speech transcript | Passed to the classifier; included in a confirmed incident record | Browser SpeechRecognition may process audio through the browser vendor's service. Vendor handling is outside this app. |
+| Notification preview | Always simulated; may create a `notification_log` row when Supabase is configured | No SMS, email, push, or emergency call is sent. Simulation payload can include a contact's name, phone/email, transcript summary, and event location. |
+| Fixture export | Static fixture text, model/config identifiers, labels, and deterministic predictions | Does not include microphone recordings or personal incident data. |
 
-## 7. Consent and transparency (PROPOSED)
+## Microphone and transcription
 
-- First-run screen explains: (1) when the microphone is on, (2) that audio is not stored by us, (3) that the browser's speech service may be involved, (4) what happens in a HIGH escalation.
-- Settings screen: toggle voice detection ON/OFF, edit contacts, delete account.
-- Every escalated event shows the user exactly what was sent (the JSON payload, human-readable).
+- The Listen screen requires explicit consent, then the user must press ARM. Capture is not a background service and stops on DISARM or capture failure.
+- Audio analysis uses in-memory 1-second windows with a 500 ms hop and approximate energy/peak/spectral-centroid heuristics. The app does not save audio samples and does not implement a validated acoustic distress detector.
+- SpeechRecognition is a separate browser service. Depending on the browser and settings, audio may leave the device for vendor processing. The UI discloses this; HerShield does not control the vendor's storage or retention.
+- A confirmed event includes transcript text in local storage and may sync it to Supabase. Do not enter sensitive test phrases into the demo unless you intend them to remain in browser storage or, when configured, be sent to your Supabase project.
 
-## 8. What we explicitly DO NOT claim
+## Supabase, identity, and offline sync
 
-- "End-to-end encrypted." (Not implemented; we would need to say how, with keys managed where.)
-- "Zero data leaves the device." (False for the MVP browser recognizer.)
-- "Compliant with GDPR/DPDP." (We aim to document sensible practices; claiming compliance requires a legal review we cannot do.)
+- Only the public anon/publishable key belongs in browser configuration. Never put a service-role key in `VITE_*` variables or commit `.env`.
+- Local contacts/events use per-user storage keys. IndexedDB incident reads, writes, and sync updates require the current owner ID. Ownerless legacy rows are not eligible for sync.
+- Cloud incident sync runs only when Supabase is configured and an authenticated user is present. It targets the active owner's incidents and uses the local UUID for idempotent upsert retries.
+- The repository has a migration with RLS policies, but this work did not apply it to or verify it against any hosted project. Review the SQL and test two users against a disposable project before storing sensitive data.
+- Browser storage and any Supabase records are retained until cleared/deleted by the relevant browser or project operator. The app does not currently provide a complete account/data deletion flow or a retention job.
+
+## Explicitly unclaimed
+
+- No claim that zero data leaves the device, that browser speech is on-device, or that the system is end-to-end encrypted.
+- No claim of GDPR/DPDP or other legal compliance.
+- No claim that emergency services or real contacts are notified.
+- No claim that fixture metrics predict real-world performance or safety.

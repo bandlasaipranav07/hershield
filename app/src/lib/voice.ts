@@ -1,3 +1,5 @@
+import { isSarvamConfigured, startSarvamVoiceCapture } from './sarvam/sarvamVoice'
+
 export interface VoiceOutcome {
   transcript: string
   confidence: number | null
@@ -51,7 +53,7 @@ function getRecognitionCtor(): RecognitionCtor | null {
 }
 
 export function isVoiceSupported(): boolean {
-  return getRecognitionCtor() !== null
+  return isSarvamConfigured() || getRecognitionCtor() !== null
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -63,6 +65,13 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 export function startVoiceCapture(): VoiceSession | null {
+  if (isSarvamConfigured()) {
+    const sarvamSession = startSarvamVoiceCapture()
+    if (sarvamSession) {
+      return sarvamSession
+    }
+  }
+
   const Ctor = getRecognitionCtor()
   if (!Ctor) {
     return null

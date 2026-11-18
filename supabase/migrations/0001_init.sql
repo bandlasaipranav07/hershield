@@ -9,6 +9,8 @@
 --     only the service-role key (server-side / experiments harness) can write them.
 --   * notification_log rows are always status='SIMULATED'. There is no real dispatch path.
 
+create extension if not exists pgcrypto with schema extensions;
+
 -- 1. PROFILES: one row per auth user
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -39,6 +41,7 @@ create trigger on_auth_user_created
 create function public.touch_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -52,7 +55,7 @@ create trigger profiles_touch_updated_at
 
 -- 2. CONTACTS
 create table public.contacts (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key default extensions.gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   name text not null,
   phone text,
@@ -63,7 +66,7 @@ create table public.contacts (
 
 -- 3. EMERGENCY EVENTS
 create table public.emergency_events (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key default extensions.gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   event_type text not null check (event_type in ('manual_sos', 'voice_detected')),
   risk_level text not null check (risk_level in ('low', 'medium', 'high')),
@@ -86,7 +89,7 @@ create index emergency_events_user_created_idx on public.emergency_events(user_i
 
 -- 4. NOTIFICATION LOG (SIMULATION AUDIT TRAIL)
 create table public.notification_log (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key default extensions.gen_random_uuid(),
   event_id uuid not null references public.emergency_events(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   contact_id uuid references public.contacts(id) on delete set null,
@@ -98,7 +101,7 @@ create table public.notification_log (
 
 -- 5. TEST UTTERANCES (locked evaluation data; seeded by experiments harness only)
 create table public.test_utterances (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key default extensions.gen_random_uuid(),
   utterance text not null,
   label text not null check (label in ('EMERGENCY', 'NOT_EMERGENCY', 'AMBIGUOUS')),
   category text not null,        -- e.g. 'false_trigger', 'clean', 'emergency_phrasing'
@@ -109,7 +112,7 @@ create table public.test_utterances (
 
 -- 6. EXPERIMENT RESULTS (written only by the harness with service role)
 create table public.experiment_results (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key default extensions.gen_random_uuid(),
   model_name text not null check (model_name in ('A_keyword', 'B_intent', 'C_context', 'D_all')),
   split text not null default 'test',
   run_date timestamptz not null default now(),

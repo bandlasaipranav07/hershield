@@ -9,9 +9,9 @@ import {
   type MicCaptureError,
 } from '../audio/microphoneCapture'
 import { decideAction, type PolicyDecision } from '../policy'
-import { localIncidentStore, type LocalIncidentRecord } from '../storage/incidentStore'
-import { simulateNotifications, type SimulationResult } from '../notify'
-import { cloudSyncService } from '../sync/syncService'
+import type { LocalIncidentRecord } from '../storage/incidentStore'
+import { dispatchIncident, type IncidentDraft } from './incidentDispatcher'
+import type { SimulationResult } from '../notify'
 import type { GeoPoint } from '../geolocation'
 import type { SafetyMode, JourneyStatus } from '../risk/riskEngine'
 
@@ -20,6 +20,9 @@ export interface RuntimeEvents {
   onThreatEvaluated?: (evaluation: TemporalEvaluationResult) => void
   onThreatConfirmed?: (incident: LocalIncidentRecord) => void
   onSosDispatched?: (simulation: SimulationResult) => void
+  onIncidentDispatchError?: (message: string) => void
+  onConfirmationRequired?: (expiresAt: number) => void
+  onConfirmationCancelled?: () => void
   /** Called when the microphone pipeline starts successfully. */
   onMicrophoneStarted?: () => void
   /**
@@ -34,6 +37,11 @@ export class HerShieldRuntime {
   private _temporalRisk: TemporalRiskEngine
   private _audioBuffer: AudioPrivacyBuffer
   private _events: RuntimeEvents = {}
+  private _pendingConfirmationTimer: ReturnType<typeof setTimeout> | null = null
+  private _pendingConfirmationExpiresAt: number | null = null
+  private _incidentDispatched = false
+  private _dispatchInFlight: Promise<LocalIncidentRecord | null> | null = null
+  private _lastIncident: LocalIncidentRecord | null = null
 
   /**
    * Active microphone capture adapter. Null when DISARMED or capture not started.
@@ -60,6 +68,9 @@ export class HerShieldRuntime {
 
     this._stateMachine.subscribe((state) => {
       if (state === 'DISARMED') {
+        this.cancelPendingConfirmation()
+        this._incidentDispatched = false
+        this._lastIncident = null
         // Stop audio capture and wipe transient state on every disarm transition.
         this.stopAudioCapture()
         this._audioBuffer.wipe()
@@ -86,6 +97,59 @@ export class HerShieldRuntime {
   /** Returns true if the microphone capture pipeline is currently running. */
   public get isCapturing(): boolean {
     return this._micCapture?.isActive ?? false
+  }
+
+  public get pendingConfirmationExpiresAt(): number | null {
+    return this._pendingConfirmationExpiresAt
+  }
+
+  public cancelPendingConfirmation(): void {
+    if (!this._pendingConfirmationTimer && this._pendingConfirmationExpiresAt === null) return
+    if (this._pendingConfirmationTimer) clearTimeout(this._pendingConfirmationTimer)
+    this._pendingConfirmationTimer = null
+    this._pendingConfirmationExpiresAt = null
+    this._events.onConfirmationCancelled?.()
+  }
+
+  private scheduleMediumConfirmation(seconds: number, incidentDraft: IncidentDraft): void {
+    if (this._pendingConfirmationTimer || this._incidentDispatched) return
+    this._pendingConfirmationExpiresAt = Date.now() + seconds * 1000
+    this._events.onConfirmationRequired?.(this._pendingConfirmationExpiresAt)
+    this._pendingConfirmationTimer = setTimeout(() => {
+      this._pendingConfirmationTimer = null
+      this._pendingConfirmationExpiresAt = null
+      if (this._stateMachine.isArmed) void this.dispatchConfirmedIncident(incidentDraft)
+    }, seconds * 1000)
+  }
+
+  private async dispatchConfirmedIncident(
+    incidentDraft: IncidentDraft,
+  ): Promise<LocalIncidentRecord | null> {
+    if (this._dispatchInFlight) return this._dispatchInFlight
+    if (this._incidentDispatched) return this._lastIncident
+    this._incidentDispatched = true
+
+    this._dispatchInFlight = dispatchIncident(incidentDraft)
+      .then((result) => {
+        if (!result.incident) {
+          this._events.onIncidentDispatchError?.(result.error ?? 'Could not save incident')
+          return null
+        }
+        this._lastIncident = result.incident
+        this._events.onThreatConfirmed?.(result.incident)
+        if (result.simulation) this._events.onSosDispatched?.(result.simulation)
+        return result.incident
+      })
+      .catch((error: unknown) => {
+        this._events.onIncidentDispatchError?.(
+          error instanceof Error ? error.message : 'Could not dispatch incident',
+        )
+        return null
+      })
+      .finally(() => {
+        this._dispatchInFlight = null
+      })
+    return this._dispatchInFlight
   }
 
   // ── Transcript / context setters ────────────────────────────────────────────
@@ -220,55 +284,29 @@ export class HerShieldRuntime {
     // 4. Policy decision
     const decision = decideAction(evaluation.currentAssessment.level, 'engine')
 
+    const incidentDraft: IncidentDraft = {
+      eventType: 'voice_detected',
+      riskLevel: evaluation.currentAssessment.level,
+      intentLevel: evaluation.intentResult.level,
+      threatLevel: evaluation.currentAssessment.level,
+      safetyMode: params.safetyMode,
+      journeyStatus: params.journeyStatus,
+      transcript: params.transcript,
+      transcriptSummary: params.transcript.slice(0, 100),
+      triggerSource: 'runtime_voice_analyzer',
+      location: params.location,
+      asrConfidence: params.asrConfidence,
+      decisionReason: evaluation.reason,
+    }
+
     let incident: LocalIncidentRecord | undefined
 
-    // 5. Threat confirmed / escalation handling
+    // 5. Threat confirmation uses a single local-first response path per armed session.
     if (evaluation.escalated || decision.action === 'ESCALATE') {
-      incident = await localIncidentStore.saveIncident({
-        eventType: 'voice_detected',
-        riskLevel: evaluation.currentAssessment.level,
-        intentLevel: evaluation.intentResult.level,
-        threatLevel: evaluation.currentAssessment.level,
-        safetyMode: params.safetyMode,
-        journeyStatus: params.journeyStatus,
-        transcript: params.transcript,
-        transcriptSummary: params.transcript.slice(0, 100),
-        triggerSource: 'runtime_voice_analyzer',
-        location: params.location,
-        asrConfidence: params.asrConfidence,
-        decisionReason: evaluation.reason,
-      })
-
-      this._events.onThreatConfirmed?.(incident)
-
-      // Trigger simulated notifications
-      const sim = await simulateNotifications({
-        id: incident.localId,
-        user_id: incident.userId ?? 'local-user',
-        event_type: incident.eventType,
-        risk_level: incident.riskLevel.toLowerCase() as 'low' | 'medium' | 'high',
-        intent_level: incident.intentLevel ?? null,
-        threat_level: incident.threatLevel ?? null,
-        safety_mode: incident.safetyMode ?? null,
-        journey_status: incident.journeyStatus ?? null,
-        transcript: incident.transcript ?? null,
-        transcript_summary: incident.transcriptSummary ?? null,
-        trigger_source: incident.triggerSource ?? null,
-        location_lat: incident.location?.lat ?? null,
-        location_lng: incident.location?.lng ?? null,
-        location_accuracy: incident.location?.accuracy ?? null,
-        asr_confidence: incident.asrConfidence ?? null,
-        decision_reason: incident.decisionReason ?? null,
-        resolved_at: null,
-        created_at: incident.createdAt,
-      })
-
-      this._events.onSosDispatched?.(sim)
-
-      // Trigger asynchronous cloud sync attempt (offline-safe)
-      void cloudSyncService.syncPendingIncidents().catch(() => {
-        // Silently preserve local record if offline
-      })
+      this.cancelPendingConfirmation()
+      incident = (await this.dispatchConfirmedIncident(incidentDraft)) ?? undefined
+    } else if (decision.action === 'CONFIRMATION_REQUIRED') {
+      this.scheduleMediumConfirmation(decision.countdownSeconds ?? 10, incidentDraft)
     }
 
     return { evaluation, decision, incident }

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('./supabase', () => ({
+  isSupabaseConfigured: true,
+  isDemoModeEnabled: false,
   supabase: {
     auth: {
       getSession: vi.fn(),

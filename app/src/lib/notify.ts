@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, isSupabaseConfigured } from './supabase'
 import { getCurrentUserId } from './session'
 import { listContacts } from './contacts'
 import type { EmergencyEvent } from './events'
@@ -58,6 +58,9 @@ export async function simulateNotifications(
   if (!userId) {
     return { notified: 0, error: 'Not signed in' }
   }
+  if (event.user_id !== userId) {
+    return { notified: 0, error: 'Incident owner does not match the signed-in user' }
+  }
 
   const contactsResult = await listContacts()
   if (contactsResult.error) {
@@ -77,6 +80,10 @@ export async function simulateNotifications(
   }))
 
   try {
+    // In demo mode skip the DB write — notification is already purely simulated
+    if (!isSupabaseConfigured) {
+      return { notified: rows.length, error: null }
+    }
     const { error } = await supabase.from('notification_log').insert(rows)
     if (error) {
       return { notified: 0, error: error.message }

@@ -1,66 +1,34 @@
-# HerShield — TODO
+# HerShield — Project Status and TODO
 
-**Status:** Draft v1 · **Date:** 2026-08-20
+**Last reviewed:** 2026-10-29
 
-All items are pending. Checkmarks appear only when a task is actually done.
+## Implemented in the current checkout
 
-## Phase 0 — Research & approval (current)
-- [x] Research existing women-safety apps
-- [x] Research voice-triggered / AI distress-detection systems
-- [x] Research context-aware systems + false-alarm reduction
-- [x] Research privacy/on-device approaches
-- [x] Write SOURCES.md, COMPETITIVE_ANALYSIS.md, NOVELTY_MATRIX.md
-- [x] Write EXPERIMENT_PLAN.md, RISK_ENGINE.md, PRIVACY.md, TESTING.md, ARCHITECTURE.md, DECISIONS.md
-- [x] Write PROJECT_PROPOSAL.md (23-point first task)
-- [x] **Team approved proposal** (stack, MVP limits, A/B/C experiment, DEMO mode)
-- [x] Write PHASE_0_DESIGN.md (final architecture, schema, RLS, env, git, Phase 1 plan)
-- [ ] **Team approves Phase 0 design → begin Phase 1** ← we are waiting here
+- [x] React + TypeScript + Vite application with login, contacts, Listen, Dashboard, and Testing screens.
+- [x] Supabase Auth/data helpers and an explicit development-only demo identity.
+- [x] Per-user browser contact/event storage and owner-tagged IndexedDB incident records.
+- [x] Consent-gated microphone capture, sliding 1-second/500-ms audio windows, and capture-failure disarm behavior.
+- [x] Intent/risk/policy pipeline, local-first voice/manual incident dispatch, medium confirmation expiry/cancel, and duplicate-dispatch guard.
+- [x] Owner-filtered cloud sync with stable incident IDs for retries; current-owner local/cloud event merge.
+- [x] Four-model synthetic fixture evaluation, explicit labels, confusion metrics, and JSON export.
+- [x] Documentation that distinguishes implemented code, simulation, and unverified live behavior.
 
-## Phase 1 — Project setup ✅
-- [x] git init, .gitignore (never commit secrets), initial docs commit
-- [x] Scaffold React + TypeScript + Vite app in app/
-- [x] Strip boilerplate, add DEMO/SIMULATION placeholder
-- [x] Add Vitest + React Testing Library, smoke test
-- [x] .env.example, README run instructions
-- [x] Small commit + update TODO/DECISIONS
+## Still required before a live Supabase integration is trusted
 
-## Phase 2 — Supabase authentication ✅
-- [x] Write `supabase/migrations/0001_init.sql` (schema + RLS + trigger) — pending manual apply
-- [x] Add `@supabase/supabase-js` + `react-router-dom` (routing for multi-screen app)
-- [x] `lib/supabase.ts` (fail-fast env check), `lib/auth.ts`, `AuthContext` (session + sign-in/up/out)
-- [x] Login / Register screens, protected `/` route + DEMO/SIMULATION banner
-- [x] Unit tests (auth helpers, AuthContext, Login, App routing) — 15 tests with mocked Supabase
-- [x] `supabase/README.md` with one-time setup + RLS verification steps
-- [x] Build + lint + tests green; commit `feat: add authentication`
-- [ ] MANUAL (team): create Supabase project, run `0001_init.sql`, fill `app/.env`, run RLS checks
+- [ ] Review `supabase/migrations/0001_init.sql` and each RLS policy against the intended threat model.
+- [ ] Apply migrations only to an explicitly selected disposable/development project after review; no hosted project was changed by this work.
+- [ ] Verify sign-up/sign-in, owner isolation, incident retry, and notification log behavior using two test users in that project.
+- [ ] Add an isolated Supabase integration test environment and CI checks. Existing unit tests mock Supabase.
 
-## Phase 2 — MVP features (in order)
-- [x] Auth (login/register, protected routes)
-- [x] Emergency contacts CRUD
-- [x] Location service (geolocation wrapper)
-- [x] Voice input + ASR wrapper + consent screen
-- [x] Intent classifier (TF-IDF + LR) + unit tests
-- [x] Risk engine + policy + unit tests
-- [x] Emergency event creation + notification simulation
-- [x] Emergency dashboard
-- [ ] Testing dashboard (fixtures + metrics table)
+## Research and product work remaining
 
-## Phase 3 — Experiment & testing
-- [ ] Build labeled dataset (see EXPERIMENT_PLAN.md)
-- [ ] Run Model A/B/C/D ablation
-- [ ] Fill results tables (TESTING.md + EXPERIMENT_PLAN.md) with OUR EXPERIMENTAL RESULT
-- [ ] Write report conclusion (conservative)
+- [ ] Build and independently label a larger utterance dataset; train a model rather than relying on seed weights.
+- [ ] Run A–D evaluation on held-out data and report confusion counts, confidence intervals, and latency as experimental results.
+- [ ] Run actual microphone, browser SpeechRecognition, GPS-denial, and network interruption checks on supported devices.
+- [ ] Consider on-device ASR, validated acoustic distress detection, native mobile/background support, or real notification delivery only with separate design, privacy, operational, and safety reviews.
+- [ ] Complete keyboard, screen-reader, contrast, and small-screen accessibility review.
 
-## Phase 4 — Polish
-- [ ] Privacy consent text finalized
-- [ ] Error states (no GPS, no network) verified
-- [ ] Final demo checklist
-- [ ] Commit log tidy (small, descriptive commits)
+## Not part of this local implementation pass
 
-## Future work (NOT MVP — see PROPOSAL §12)
-- On-device ASR (whisper.cpp) for privacy/offline
-- Distress speech (emotion) model
-- Motion signals, journey deviation
-- Real SMS/emergency-service integration
-- Multilingual support
-- Wearable/BLE
+- No dependency installation, hosted database operation, destructive reset, deployment, staging, or commit was performed.
+- Notifications remain simulated; this project is not an emergency service.

@@ -21,21 +21,25 @@ Supabase project.
 > Only the **anon** key is used in the browser. The `service_role` key is never put in
 > the frontend (see docs/PRIVACY.md).
 
-## Applying the migration again
+## Migration safety
 
-The migration uses plain `create table` / `create policy` statements, so it cannot be
-re-run after it has already been applied. To reset a dev project: **SQL Editor → select
-all → delete** the tables, then re-run `0001_init.sql`.
+Treat `migrations/0001_init.sql` as the initial schema history. Review it and the RLS
+policies before applying it to any project. Do not reset a hosted project or delete its
+tables to make this migration rerunnable. For a schema change after the initial
+migration, add a new, reviewed, forward migration and plan a rollback before applying it.
+
+No hosted Supabase project was changed or verified during the current local hardening
+work. A configured project, credentials, migration target, and a live RLS verification
+were not part of that work.
 
 ## RLS verification (do once after setup)
 
-These checks prove the core security rule: **a user can only see/edit their own rows.**
-The `anon` key must NOT be able to read anything, and a second user must NOT see a first
-user's data.
+These checks are a manual verification plan, not evidence that a hosted project has
+passed. Review policies for every table and test with two distinct authenticated users.
 
-Run the checks below in the SQL Editor first, then in the app:
+Run the checks below only against a disposable test project or local Supabase instance:
 
-### In the SQL Editor (auth bypass — verifies anon has no access)
+### In the SQL Editor
 
 ```sql
 -- Expect 0 rows: RLS blocks the anonymous role from reading
@@ -44,22 +48,13 @@ select count(*) from public.contacts;
 set role postgres;
 ```
 
-### In the browser (two real users)
+### In the app (two test users)
 
-1. Register `userA@example.com` and `userB@example.com`.
-2. Sign in as A. Open DevTools console and run:
+1. Register two test accounts in the disposable project.
+2. Sign in as A and add a test contact and event through the app.
+3. Sign out, sign in as B, and inspect the app's contacts and events. B must not see A's rows.
+4. Sign back in as A and confirm A's rows are still present.
 
-   ```js
-   await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/contacts`, {
-     headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${(await supabase.auth.getSession()).data.session.access_token}` },
-   }).then((r) => r.json())
-   ```
-
-   You'll get an empty array (A has no contacts yet) — fine.
-
-3. Sign in as B. Run the same snippet with B's session. Result must be `[]` — B cannot
-   see A's data (this is the RLS cross-user isolation check).
-
-> A fully automated RLS integration test (script that signs up two throwaway users and
-> asserts isolation) is planned once the app has its own CI/test database — see
-> docs/TESTING.md.
+> The repository's unit tests mock Supabase and do not prove hosted RLS behavior. An
+> automated RLS integration test still needs an isolated Supabase test project and CI
+> credentials; do not point such tests at production data.

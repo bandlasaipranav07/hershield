@@ -1,12 +1,17 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { canEnableDemoMode, hasSupabaseConfiguration } from './supabaseConfig'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const rawUrl = import.meta.env.VITE_SUPABASE_URL
+const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!url || !anonKey) {
-  throw new Error(
-    'Missing Supabase env vars. Copy app/.env.example to app/.env and fill VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
-  )
-}
+export const isSupabaseConfigured = hasSupabaseConfiguration(rawUrl, rawKey)
+export const isDemoModeEnabled = canEnableDemoMode(
+  import.meta.env.DEV,
+  isSupabaseConfigured,
+  import.meta.env.VITE_DEMO_MODE,
+)
+
+const url = rawUrl || 'https://placeholder.supabase.co'
+const anonKey = rawKey || 'placeholder-anon-key'
 
 export const supabase: SupabaseClient = createClient(url, anonKey)

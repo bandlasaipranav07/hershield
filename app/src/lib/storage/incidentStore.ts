@@ -7,7 +7,7 @@ export type SyncStatus = 'PENDING' | 'SYNCED' | 'FAILED'
 export interface LocalIncidentRecord {
   localId: string
   cloudId?: string | null
-  userId?: string | null
+  userId: string
   eventType: EmergencyEventType
   riskLevel: RiskLevel
   intentLevel?: string | null
@@ -27,8 +27,16 @@ export interface LocalIncidentRecord {
 }
 
 const DB_NAME = 'hershield_local_db'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_NAME = 'incidents'
+
+function createLocalId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
+    const random = Math.random() * 16 | 0
+    return (character === 'x' ? random : (random & 0x3) | 0x8).toString(16)
+  })
+}
 
 export class LocalIncidentStore {
   private _memoryStore: Map<string, LocalIncidentRecord> = new Map()
@@ -47,6 +55,13 @@ export class LocalIncidentStore {
           store.createIndex('syncStatus', 'syncStatus', { unique: false })
           store.createIndex('createdAt', 'createdAt', { unique: false })
         }
+        const store = req.transaction?.objectStore(STORE_NAME)
+        if (store && !store.indexNames.contains('userId')) {
+          store.createIndex('userId', 'userId', { unique: false })
+        }
+        if (store && !store.indexNames.contains('userSyncStatus')) {
+          store.createIndex('userSyncStatus', ['userId', 'syncStatus'], { unique: false })
+        }
       }
       req.onsuccess = () => resolve(req.result)
       req.onerror = () => reject(req.error)
@@ -59,9 +74,10 @@ export class LocalIncidentStore {
       createdAt?: string
     },
   ): Promise<LocalIncidentRecord> {
+    if (!incident.userId?.trim()) throw new Error('A signed-in owner is required to save an incident')
     const record: LocalIncidentRecord = {
       ...incident,
-      localId: incident.localId ?? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `local_${Date.now()}_${Math.random()}`),
+      localId: incident.localId ?? createLocalId(),
       createdAt: incident.createdAt ?? new Date().toISOString(),
       syncStatus: 'PENDING',
       syncRetryCount: 0,
@@ -87,9 +103,12 @@ export class LocalIncidentStore {
     }
   }
 
-  public async getPendingIncidents(): Promise<LocalIncidentRecord[]> {
+  public async getPendingIncidents(userId: string): Promise<LocalIncidentRecord[]> {
+    if (!userId) return []
     if (!this._useIndexedDb) {
-      return Array.from(this._memoryStore.values()).filter((r) => r.syncStatus === 'PENDING')
+      return Array.from(this._memoryStore.values()).filter(
+        (r) => r.userId === userId && r.syncStatus !== 'SYNCED',
+      )
     }
 
     try {
@@ -97,25 +116,30 @@ export class LocalIncidentStore {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readonly')
         const store = tx.objectStore(STORE_NAME)
-        const index = store.index('syncStatus')
-        const req = index.getAll('PENDING')
-        req.onsuccess = () => resolve(req.result as LocalIncidentRecord[])
+        const index = store.index('userId')
+        const req = index.getAll(userId)
+        req.onsuccess = () => resolve(
+          (req.result as LocalIncidentRecord[]).filter((record) => record.syncStatus !== 'SYNCED'),
+        )
         req.onerror = () => reject(req.error)
       })
     } catch {
-      return Array.from(this._memoryStore.values()).filter((r) => r.syncStatus === 'PENDING')
+      return Array.from(this._memoryStore.values()).filter(
+        (r) => r.userId === userId && r.syncStatus !== 'SYNCED',
+      )
     }
   }
 
   public async updateSyncStatus(
     localId: string,
+    userId: string,
     status: SyncStatus,
     cloudId?: string | null,
     error?: string | null,
   ): Promise<void> {
     if (!this._useIndexedDb) {
       const rec = this._memoryStore.get(localId)
-      if (rec) {
+      if (rec?.userId === userId) {
         rec.syncStatus = status
         if (cloudId) rec.cloudId = cloudId
         if (error) {
@@ -134,7 +158,7 @@ export class LocalIncidentStore {
         const getReq = store.get(localId)
         getReq.onsuccess = () => {
           const rec = getReq.result as LocalIncidentRecord | undefined
-          if (!rec) return resolve()
+          if (!rec || rec.userId !== userId) return resolve()
           rec.syncStatus = status
           if (cloudId) rec.cloudId = cloudId
           if (error) {
@@ -147,7 +171,7 @@ export class LocalIncidentStore {
       })
     } catch {
       const rec = this._memoryStore.get(localId)
-      if (rec) {
+      if (rec?.userId === userId) {
         rec.syncStatus = status
         if (cloudId) rec.cloudId = cloudId
         if (error) {
@@ -158,9 +182,10 @@ export class LocalIncidentStore {
     }
   }
 
-  public async listAll(): Promise<LocalIncidentRecord[]> {
+  public async listAll(userId: string): Promise<LocalIncidentRecord[]> {
+    if (!userId) return []
     if (!this._useIndexedDb) {
-      return Array.from(this._memoryStore.values()).sort(
+      return Array.from(this._memoryStore.values()).filter((record) => record.userId === userId).sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       )
     }
@@ -170,7 +195,7 @@ export class LocalIncidentStore {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readonly')
         const store = tx.objectStore(STORE_NAME)
-        const req = store.getAll()
+        const req = store.index('userId').getAll(userId)
         req.onsuccess = () => {
           const list = req.result as LocalIncidentRecord[]
           list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -179,7 +204,7 @@ export class LocalIncidentStore {
         req.onerror = () => reject(req.error)
       })
     } catch {
-      return Array.from(this._memoryStore.values())
+      return Array.from(this._memoryStore.values()).filter((record) => record.userId === userId)
     }
   }
 

@@ -1,5 +1,7 @@
-import { supabase } from './supabase'
+import { supabase, isSupabaseConfigured } from './supabase'
 import { getCurrentUserId } from './session'
+import { readOwnedRows, writeOwnedRows } from './storage/ownerScopedLocalData'
+import { localIncidentStore, type LocalIncidentRecord } from './storage/incidentStore'
 import type { GeoPoint } from './geolocation'
 import type { RiskLevel, SafetyMode, JourneyStatus } from './risk/riskEngine'
 
@@ -27,6 +29,8 @@ export interface EmergencyEvent {
 }
 
 export interface EmergencyEventInput {
+  /** Stable UUID used to make local incident retries idempotent in Supabase. */
+  eventId?: string
   eventType: EmergencyEventType
   riskLevel: RiskLevel
   intentLevel?: string | null
@@ -43,6 +47,16 @@ export interface EmergencyEventInput {
 
 const COLUMNS =
   'id, user_id, event_type, risk_level, intent_level, threat_level, safety_mode, journey_status, transcript, transcript_summary, trigger_source, location_lat, location_lng, location_accuracy, asr_confidence, decision_reason, resolved_at, created_at'
+
+const LOCAL_EVENTS_KEY = 'hershield_events'
+
+function localLoadEvents(userId: string): EmergencyEvent[] {
+  return readOwnedRows<EmergencyEvent>(LOCAL_EVENTS_KEY, userId)
+}
+
+function localSaveEvents(userId: string, events: EmergencyEvent[]): void {
+  writeOwnedRows(LOCAL_EVENTS_KEY, userId, events)
+}
 
 function toErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error) return err.message
@@ -74,8 +88,46 @@ function toEvent(row: Record<string, unknown>): EmergencyEvent {
   return row as unknown as EmergencyEvent
 }
 
+function incidentToEvent(incident: LocalIncidentRecord): EmergencyEvent {
+  return {
+    id: incident.cloudId ?? incident.localId,
+    user_id: incident.userId,
+    event_type: incident.eventType,
+    risk_level: incident.riskLevel.toLowerCase() as EmergencyEvent['risk_level'],
+    intent_level: incident.intentLevel ?? null,
+    threat_level: incident.threatLevel ?? null,
+    safety_mode: incident.safetyMode ?? null,
+    journey_status: incident.journeyStatus ?? null,
+    transcript: incident.transcript ?? null,
+    transcript_summary: incident.transcriptSummary ?? null,
+    trigger_source: incident.triggerSource ?? null,
+    location_lat: incident.location?.lat ?? null,
+    location_lng: incident.location?.lng ?? null,
+    location_accuracy: incident.location?.accuracy ?? null,
+    asr_confidence: incident.asrConfidence ?? null,
+    decision_reason: incident.decisionReason ?? null,
+    resolved_at: null,
+    created_at: incident.createdAt,
+  }
+}
+
+function mergeIncidentEvents(
+  cloudEvents: EmergencyEvent[],
+  localIncidents: LocalIncidentRecord[],
+): EmergencyEvent[] {
+  const merged = new Map(cloudEvents.map((event) => [event.id, event]))
+  for (const incident of localIncidents) {
+    const event = incidentToEvent(incident)
+    if (!merged.has(event.id)) merged.set(event.id, event)
+  }
+  return Array.from(merged.values()).sort(
+    (left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
+  )
+}
+
 export async function createEmergencyEvent(
   input: EmergencyEventInput,
+  expectedUserId?: string,
 ): Promise<{ event: EmergencyEvent | null; error: string | null }> {
   const invalid = validateEventInput(input)
   if (invalid) {
@@ -86,13 +138,42 @@ export async function createEmergencyEvent(
   if (!userId) {
     return { event: null, error: 'Not signed in' }
   }
+  if (expectedUserId && userId !== expectedUserId) {
+    return { event: null, error: 'Signed-in user changed before incident sync' }
+  }
+
+  if (!isSupabaseConfigured) {
+    const newEvent: EmergencyEvent = {
+      id: input.eventId ?? `local-evt-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      user_id: userId,
+      event_type: input.eventType,
+      risk_level: input.riskLevel.toLowerCase() as EmergencyEvent['risk_level'],
+      intent_level: input.intentLevel ?? null,
+      threat_level: input.threatLevel ?? null,
+      safety_mode: input.safetyMode ?? null,
+      journey_status: input.journeyStatus ?? null,
+      transcript: input.transcript ?? null,
+      transcript_summary: input.transcriptSummary ?? null,
+      trigger_source: input.triggerSource ?? null,
+      location_lat: input.location?.lat ?? null,
+      location_lng: input.location?.lng ?? null,
+      location_accuracy: input.location?.accuracy ?? null,
+      asr_confidence: input.asrConfidence ?? null,
+      decision_reason: input.decisionReason ?? null,
+      resolved_at: null,
+      created_at: new Date().toISOString(),
+    }
+    const all = localLoadEvents(userId)
+    localSaveEvents(userId, [newEvent, ...all.filter((event) => event.id !== newEvent.id)])
+    return { event: newEvent, error: null }
+  }
 
   try {
-    const { data, error } = await supabase
-      .from('emergency_events')
-      .insert(toRow(input, userId))
-      .select(COLUMNS)
-      .single()
+    const baseQuery = supabase.from('emergency_events')
+    const writeQuery = input.eventId
+      ? baseQuery.upsert({ ...toRow(input, userId), id: input.eventId }, { onConflict: 'id' })
+      : baseQuery.insert(toRow(input, userId))
+    const { data, error } = await writeQuery.select(COLUMNS).single()
     if (error) {
       return { event: null, error: error.message }
     }
@@ -116,16 +197,33 @@ export async function listEmergencyEvents(): Promise<{
   events: EmergencyEvent[]
   error: string | null
 }> {
+  const userId = await getCurrentUserId()
+  if (!userId) return { events: [], error: 'Not signed in' }
+
+  const localIncidents = await localIncidentStore.listAll(userId)
+  if (!isSupabaseConfigured) {
+    return {
+      events: mergeIncidentEvents(localLoadEvents(userId), localIncidents),
+      error: null,
+    }
+  }
   try {
     const { data, error } = await supabase
       .from('emergency_events')
       .select(COLUMNS)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
     if (error) {
-      return { events: [], error: error.message }
+      return { events: mergeIncidentEvents([], localIncidents), error: error.message }
     }
-    return { events: ((data ?? []) as Record<string, unknown>[]).map(toEvent), error: null }
+    return {
+      events: mergeIncidentEvents(((data ?? []) as Record<string, unknown>[]).map(toEvent), localIncidents),
+      error: null,
+    }
   } catch (err) {
-    return { events: [], error: toErrorMessage(err, 'Could not load emergency events') }
+    return {
+      events: mergeIncidentEvents([], localIncidents),
+      error: toErrorMessage(err, 'Could not load emergency events'),
+    }
   }
 }

@@ -1,5 +1,6 @@
-import { supabase } from './supabase'
+import { supabase, isSupabaseConfigured } from './supabase'
 import { getCurrentUserId } from './session'
+import { readOwnedRows, writeOwnedRows } from './storage/ownerScopedLocalData'
 
 export interface Contact {
   id: string
@@ -19,6 +20,16 @@ export interface ContactInput {
 }
 
 const COLUMNS = 'id, user_id, name, phone, email, relation, created_at'
+
+const LOCAL_KEY = 'hershield_contacts'
+
+function localLoad(userId: string): Contact[] {
+  return readOwnedRows<Contact>(LOCAL_KEY, userId)
+}
+
+function localSave(userId: string, contacts: Contact[]): void {
+  writeOwnedRows(LOCAL_KEY, userId, contacts)
+}
 
 function toErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error) return err.message
@@ -43,6 +54,11 @@ export function validateContactInput(input: ContactInput): string | null {
 }
 
 export async function listContacts(): Promise<{ contacts: Contact[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    const userId = await getCurrentUserId()
+    if (!userId) return { contacts: [], error: 'Not signed in' }
+    return { contacts: localLoad(userId), error: null }
+  }
   try {
     const { data, error } = await supabase
       .from('contacts')
@@ -70,6 +86,18 @@ export async function addContact(
     return { contact: null, error: 'Not signed in' }
   }
 
+  if (!isSupabaseConfigured) {
+    const newContact: Contact = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      user_id: userId,
+      created_at: new Date().toISOString(),
+      ...toPayload(input),
+    } as Contact
+    const all = localLoad(userId)
+    localSave(userId, [...all, newContact])
+    return { contact: newContact, error: null }
+  }
+
   const payload = { ...toPayload(input), user_id: userId }
   try {
     const { data, error } = await supabase
@@ -95,6 +123,17 @@ export async function updateContact(
     return { error: invalid }
   }
 
+  if (!isSupabaseConfigured) {
+    const userId = await getCurrentUserId()
+    if (!userId) return { error: 'Not signed in' }
+    const all = localLoad(userId)
+    const idx = all.findIndex((c) => c.id === id)
+    if (idx === -1) return { error: 'Contact not found' }
+    all[idx] = { ...all[idx], ...toPayload(input) }
+    localSave(userId, all)
+    return { error: null }
+  }
+
   const userId = await getCurrentUserId()
   if (!userId) {
     return { error: 'Not signed in' }
@@ -113,6 +152,14 @@ export async function updateContact(
 }
 
 export async function deleteContact(id: string): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured) {
+    const userId = await getCurrentUserId()
+    if (!userId) return { error: 'Not signed in' }
+    const all = localLoad(userId).filter((c) => c.id !== id)
+    localSave(userId, all)
+    return { error: null }
+  }
+
   const userId = await getCurrentUserId()
   if (!userId) {
     return { error: 'Not signed in' }

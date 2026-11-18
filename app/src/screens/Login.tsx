@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { isDemoModeEnabled } from '../lib/supabase'
 
 export function Login() {
-  const { signIn } = useAuth()
+  const { signIn, signInDemo } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -22,6 +23,19 @@ export function Login() {
     }
     navigate('/')
   }
+
+  async function handleDemoLogin() {
+    setError(null)
+    setSubmitting(true)
+    const err = await signInDemo()
+    setSubmitting(false)
+    if (err) {
+      setError(err)
+      return
+    }
+    navigate('/')
+  }
+
 
   return (
     <div className="auth-page-container">
@@ -148,6 +162,30 @@ export function Login() {
                 </span>
               )}
             </button>
+
+            {isDemoModeEnabled && (
+              <>
+                <div className="auth-divider">
+                  <span>or evaluate instantly</span>
+                </div>
+
+                <button
+                  type="button"
+                  className="auth-demo-btn"
+                  disabled={submitting}
+                  onClick={() => void handleDemoLogin()}
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="btn-icon-demo" aria-hidden="true">
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>Launch Instant Demo Mode</span>
+                </button>
+              </>
+            )}
 
             <p className="auth-switch">
               No account? <Link to="/register" className="auth-link">Create one</Link>

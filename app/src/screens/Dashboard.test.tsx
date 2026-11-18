@@ -10,16 +10,15 @@ vi.mock('../lib/events', () => ({
   listEmergencyEvents: vi.fn(),
 }))
 
-vi.mock('../lib/notify', () => ({
-  simulateNotifications: vi.fn(),
+vi.mock('../lib/core/incidentDispatcher', () => ({
+  dispatchIncident: vi.fn(),
 }))
 
-import { createEmergencyEvent, listEmergencyEvents } from '../lib/events'
-import { simulateNotifications } from '../lib/notify'
+import { listEmergencyEvents } from '../lib/events'
+import { dispatchIncident } from '../lib/core/incidentDispatcher'
 
-const mockedCreate = vi.mocked(createEmergencyEvent)
 const mockedList = vi.mocked(listEmergencyEvents)
-const mockedSimulate = vi.mocked(simulateNotifications)
+const mockedDispatch = vi.mocked(dispatchIncident)
 
 function makeEvent(overrides: Partial<EmergencyEvent> = {}): EmergencyEvent {
   return {
@@ -57,6 +56,7 @@ describe('Dashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockedList.mockResolvedValue({ events: [], error: null })
+    mockedDispatch.mockReset()
   })
 
   it('shows the SOS button and an empty state when no events exist', async () => {
@@ -114,14 +114,25 @@ describe('Dashboard', () => {
     await user.click(screen.getByRole('button', { name: 'SOS' }))
 
     expect(screen.getByText(/trigger emergency now/i)).toBeInTheDocument()
-    expect(mockedCreate).not.toHaveBeenCalled()
+    expect(mockedDispatch).not.toHaveBeenCalled()
   })
 
   it('creates a manual SOS event, simulates notifications, and refreshes', async () => {
     const user = userEvent.setup()
     const saved = makeEvent()
-    mockedCreate.mockResolvedValue({ event: saved, error: null })
-    mockedSimulate.mockResolvedValue({ notified: 2, error: null })
+    mockedDispatch.mockResolvedValue({
+      incident: {
+        localId: saved.id,
+        userId: saved.user_id,
+        eventType: 'manual_sos',
+        riskLevel: 'HIGH',
+        createdAt: saved.created_at,
+        syncStatus: 'PENDING',
+        syncRetryCount: 0,
+      },
+      simulation: { notified: 2, error: null },
+      error: null,
+    })
     let calls = 0
     mockedList.mockImplementation(async () => {
       calls += 1
@@ -135,36 +146,47 @@ describe('Dashboard', () => {
     await user.click(screen.getByRole('button', { name: /yes — trigger sos/i }))
 
     await waitFor(() =>
-      expect(mockedCreate).toHaveBeenCalledWith({
+      expect(mockedDispatch).toHaveBeenCalledWith({
         eventType: 'manual_sos',
         riskLevel: 'HIGH',
         triggerSource: 'manual_sos_button',
         decisionReason: expect.stringContaining('bypasses the risk engine'),
       }),
     )
-    expect(mockedSimulate).toHaveBeenCalledWith(saved)
     expect(
-      await screen.findByText(/simulated notifications prepared for 2 contact/i),
+      await screen.findByText(/sos saved locally. simulated notifications prepared for 2 contact/i),
     ).toBeInTheDocument()
     expect(await screen.findByText('Manual SOS')).toBeInTheDocument()
   })
 
   it('shows a creation error and keeps the confirm state for retry', async () => {
     const user = userEvent.setup()
-    mockedCreate.mockResolvedValue({ event: null, error: 'new row violates RLS' })
+    mockedDispatch.mockResolvedValue({ incident: null, simulation: null, error: 'not signed in' })
 
     renderDashboard()
     await user.click(screen.getByRole('button', { name: 'SOS' }))
     await user.click(screen.getByRole('button', { name: /yes — trigger sos/i }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('new row violates RLS')
+    expect(await screen.findByRole('alert')).toHaveTextContent('not signed in')
     expect(screen.getByRole('button', { name: /yes — trigger sos/i })).toBeInTheDocument()
   })
 
   it('surfaces notification failures separately from event creation', async () => {
     const user = userEvent.setup()
-    mockedCreate.mockResolvedValue({ event: makeEvent(), error: null })
-    mockedSimulate.mockResolvedValue({ notified: 0, error: 'Failed to fetch' })
+    const saved = makeEvent()
+    mockedDispatch.mockResolvedValue({
+      incident: {
+        localId: saved.id,
+        userId: saved.user_id,
+        eventType: 'manual_sos',
+        riskLevel: 'HIGH',
+        createdAt: saved.created_at,
+        syncStatus: 'PENDING',
+        syncRetryCount: 0,
+      },
+      simulation: { notified: 0, error: 'Failed to fetch' },
+      error: null,
+    })
 
     renderDashboard()
     await screen.findByText(/no emergency events yet/i)
@@ -173,7 +195,7 @@ describe('Dashboard', () => {
     await user.click(screen.getByRole('button', { name: /yes — trigger sos/i }))
 
     expect(
-      await screen.findByText(/notifications failed: Failed to fetch/i),
+      await screen.findByText(/sos saved locally; simulated notifications failed: Failed to fetch/i),
     ).toBeInTheDocument()
   })
 })

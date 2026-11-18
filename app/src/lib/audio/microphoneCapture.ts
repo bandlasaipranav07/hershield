@@ -20,7 +20,11 @@
  *   AudioWorklet upgrade path is documented as future work.
  * - The browser's SpeechRecognition API (voice.ts) is a separate channel
  *   for transcript generation and is NOT provided by this adapter.
+ * - PCM callbacks contain bounded one-second windows at a 500 ms hop. The
+ *   window sample count uses the AudioContext's actual sample rate.
  */
+
+import { SlidingAudioWindowBuffer } from './slidingAudioWindowBuffer'
 
 /** Possible states of the microphone capture lifecycle. */
 export type MicCaptureState =
@@ -74,6 +78,10 @@ export interface MicCaptureConfig {
   fftSize?: number
   /** Audio sample rate hint. Browsers may ignore or round this. Default 16000. */
   sampleRate?: number
+  /** Analysis window duration in milliseconds. Default 1000. */
+  windowMs?: number
+  /** Distance between analysis windows in milliseconds. Default 500. */
+  hopMs?: number
   /**
    * Override the mediaDevices implementation. Used in tests to inject a fake.
    * Defaults to navigator.mediaDevices.
@@ -97,10 +105,13 @@ export class MicrophoneCaptureAdapter {
   private _sourceNode: MediaStreamAudioSourceNode | null = null
   private _processorNode: ScriptProcessorNode | null = null
   private _analyserNode: AnalyserNode | null = null
+  private _windowBuffer: SlidingAudioWindowBuffer | null = null
 
   private readonly _bufferSize: number
   private readonly _fftSize: number
   private readonly _sampleRate: number
+  private readonly _windowMs: number
+  private readonly _hopMs: number
   private readonly _mediaDevicesOverride: MediaDevicesLike | undefined
   private readonly _audioContextFactory: ((sampleRate: number) => AudioContext) | undefined
   private readonly _callbacks: MicCaptureCallbacks
@@ -110,6 +121,8 @@ export class MicrophoneCaptureAdapter {
     this._bufferSize = config.bufferSize ?? DEFAULT_BUFFER_SIZE
     this._fftSize = config.fftSize ?? DEFAULT_FFT_SIZE
     this._sampleRate = config.sampleRate ?? DEFAULT_SAMPLE_RATE
+    this._windowMs = config.windowMs ?? 1000
+    this._hopMs = config.hopMs ?? 500
     this._mediaDevicesOverride = config.mediaDevicesOverride
     this._audioContextFactory = config.audioContextFactory
   }
@@ -213,6 +226,18 @@ export class MicrophoneCaptureAdapter {
     analyserNode.fftSize = this._fftSize
     const processorNode = context.createScriptProcessor(this._bufferSize, 1, 1)
     const frequencyBin = new Uint8Array(analyserNode.frequencyBinCount)
+    const windowSamples = Math.round((context.sampleRate * this._windowMs) / 1000)
+    const hopSamples = Math.round((context.sampleRate * this._hopMs) / 1000)
+    let windowBuffer: SlidingAudioWindowBuffer
+    try {
+      windowBuffer = new SlidingAudioWindowBuffer(windowSamples, hopSamples)
+    } catch (err) {
+      this._stopStream(stream)
+      context.close().catch(() => {})
+      this._state = 'ERROR'
+      this._callbacks.onError('AUDIO_CONTEXT_FAILED', `Invalid audio window configuration: ${String(err)}`)
+      return false
+    }
 
     sourceNode.connect(analyserNode)
     sourceNode.connect(processorNode)
@@ -232,11 +257,13 @@ export class MicrophoneCaptureAdapter {
       analyserNode.getByteFrequencyData(frequencyBin)
       const freqSnapshot = new Uint8Array(frequencyBin)
 
-      this._callbacks.onFrame({
-        samples,
-        frequencyData: freqSnapshot,
-        timestamp: Date.now(),
-      })
+      for (const windowSamples of windowBuffer.push(samples)) {
+        this._callbacks.onFrame({
+          samples: windowSamples,
+          frequencyData: freqSnapshot,
+          timestamp: Date.now(),
+        })
+      }
     }
 
     // Handle unexpected track ending (device disconnected, etc.)
@@ -258,6 +285,7 @@ export class MicrophoneCaptureAdapter {
     this._sourceNode = sourceNode
     this._processorNode = processorNode
     this._analyserNode = analyserNode
+    this._windowBuffer = windowBuffer
     this._state = 'ACTIVE'
 
     return true
@@ -296,6 +324,8 @@ export class MicrophoneCaptureAdapter {
     this._processorNode = null
     this._analyserNode = null
     this._sourceNode = null
+    this._windowBuffer?.clear()
+    this._windowBuffer = null
     this._stream = null
     this._context = null
   }

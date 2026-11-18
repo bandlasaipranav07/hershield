@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./supabase', () => ({
+  isSupabaseConfigured: true,
+  isDemoModeEnabled: false,
   supabase: {
     auth: {
       getSession: vi.fn(),
@@ -8,8 +10,12 @@ vi.mock('./supabase', () => ({
     from: vi.fn(),
   },
 }))
+vi.mock('./session', () => ({
+  getCurrentUserId: vi.fn().mockResolvedValue('user-1'),
+}))
 
 import { supabase } from './supabase'
+import { getCurrentUserId } from './session'
 import {
   createEmergencyEvent,
   listEmergencyEvents,
@@ -19,6 +25,7 @@ import {
 
 const mockedFrom = vi.mocked(supabase.from)
 const mockedGetSession = vi.mocked(supabase.auth.getSession)
+const mockedGetCurrentUserId = vi.mocked(getCurrentUserId)
 
 interface ChainResult {
   data: unknown
@@ -28,6 +35,7 @@ interface ChainResult {
 interface QueryChain {
   select: ReturnType<typeof vi.fn>
   insert: ReturnType<typeof vi.fn>
+  upsert: ReturnType<typeof vi.fn>
   update: ReturnType<typeof vi.fn>
   delete: ReturnType<typeof vi.fn>
   eq: ReturnType<typeof vi.fn>
@@ -39,7 +47,7 @@ interface QueryChain {
 function makeChain(result: Partial<ChainResult>): QueryChain {
   const resolved = { data: result.data ?? null, error: result.error ?? null }
   const chain = {} as QueryChain
-  for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'order', 'single'] as const) {
+  for (const method of ['select', 'insert', 'upsert', 'update', 'delete', 'eq', 'order', 'single'] as const) {
     chain[method] = vi.fn(() => chain)
   }
   chain.then = (onFulfilled) => onFulfilled(resolved)
@@ -77,7 +85,7 @@ describe('validateEventInput', () => {
 describe('createEmergencyEvent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockedGetSession.mockResolvedValue({ data: { session: null }, error: null } as never)
+    mockedGetCurrentUserId.mockResolvedValue('user-1')
   })
 
   it('fails validation without touching the database', async () => {
@@ -88,6 +96,7 @@ describe('createEmergencyEvent', () => {
   })
 
   it('fails fast when not signed in', async () => {
+    mockedGetCurrentUserId.mockResolvedValue(null)
     const result = await createEmergencyEvent(baseInput)
 
     expect(result.error).toBe('Not signed in')
@@ -126,6 +135,23 @@ describe('createEmergencyEvent', () => {
     expect(result).toEqual({ event: row, error: null })
   })
 
+  it('upserts retries using the stable local incident id', async () => {
+    mockedGetSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-1' } } },
+      error: null,
+    } as never)
+    const chain = makeChain({ data: { id: 'incident-stable' }, error: null })
+    mockedFrom.mockReturnValue(chain as never)
+
+    await createEmergencyEvent({ ...baseInput, eventId: 'incident-stable' })
+
+    expect(chain.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'incident-stable', user_id: 'user-1' }),
+      { onConflict: 'id' },
+    )
+    expect(chain.insert).not.toHaveBeenCalled()
+  })
+
   it('maps database and transport errors to messages', async () => {
     mockedGetSession.mockResolvedValue({
       data: { session: { user: { id: 'user-1' } } },
@@ -159,6 +185,7 @@ describe('listEmergencyEvents', () => {
     const result = await listEmergencyEvents()
 
     expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false })
+    expect(chain.eq).toHaveBeenCalledWith('user_id', 'user-1')
     expect(result.events.map((e) => e.id)).toEqual(['event-2', 'event-1'])
     expect(result.error).toBeNull()
   })

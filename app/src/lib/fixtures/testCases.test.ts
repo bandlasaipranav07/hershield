@@ -67,13 +67,28 @@ describe('14 Automated Fixtures (TESTING.md §2)', () => {
     expect(results[3].riskAssessment.level).toBe('LOW')
     expect(results[3].passed).toBe(true)
 
-    // Case 12: Repeated trigger -> bumps to HIGH
-    expect(results[11].riskAssessment.repeatBumpApplied).toBe(true)
-    expect(results[11].riskAssessment.level).toBe('HIGH')
+    // Case 12: Model D applies repeated-trigger logic; C does not.
+    expect(results[11].riskAssessment.repeatBumpApplied).toBe(false)
+    expect(results[11].models.C.level).toBe('MEDIUM')
+    expect(results[11].models.D.level).toBe('HIGH')
     expect(results[11].passed).toBe(true)
 
     // Case 14: Manual SOS -> overrides all to ESCALATE
     expect(results[13].policyDecision.action).toBe('ESCALATE')
     expect(results[13].passed).toBe(true)
+  })
+
+  it('labels ambiguous and manual cases outside binary evaluation', () => {
+    expect(FIXTURE_DEFINITIONS[2].label).toBe('AMBIGUOUS')
+    expect(FIXTURE_DEFINITIONS[11].label).toBe('AMBIGUOUS')
+    expect(FIXTURE_DEFINITIONS[13].label).toBeNull()
+  })
+
+  it('does not describe text examples as real accent, speed, noise, or microphone tests', () => {
+    const names = FIXTURE_DEFINITIONS.map((fixture) => fixture.name.toLowerCase())
+    expect(names.some((name) => name.includes('different accents'))).toBe(false)
+    expect(names.some((name) => name.includes('speaking speeds'))).toBe(false)
+    expect(names.some((name) => name.includes('microphone conditions'))).toBe(false)
+    expect(FIXTURE_DEFINITIONS[7].context.acousticDistressCue).toBe(0.9)
   })
 })

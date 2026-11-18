@@ -1,6 +1,7 @@
 import { classifyUtterance, intentModel, type IntentResult } from '../intent/classify'
 import { assessRisk, type RiskAssessment, type RiskLevel, type SafetyMode, type JourneyStatus } from '../risk/riskEngine'
 import { decideAction, type PolicyDecision, type RiskAction, type TriggerSource } from '../policy'
+import type { FixtureLabel, FixtureModelResult, ModelId } from './evaluationMetrics'
 
 /**
  * Trigger keywords mirroring standard keyword-only baseline SOS systems (Model A).
@@ -58,6 +59,7 @@ export interface FixtureDefinition {
   expectedOutcome: string
   expectedLevel: RiskLevel
   expectedAction: RiskAction
+  label: FixtureLabel
   /** Context parameters for Model C / Risk Engine */
   context: {
     safetyMode: SafetyMode
@@ -67,12 +69,16 @@ export interface FixtureDefinition {
     isManualSos?: boolean
     gpsAvailable?: boolean
     networkAvailable?: boolean
+    /** Synthetic fixture metadata only; no microphone recording is involved. */
+    acousticDistressCue?: number
   }
   notes?: string
 }
 
 export interface FixtureEvaluation {
+  label: FixtureLabel
   fixture: FixtureDefinition
+  models: Record<ModelId, { level: RiskLevel }>
   keywordResult: KeywordBaselineResult
   intentResult: IntentResult
   riskAssessment: RiskAssessment
@@ -81,7 +87,11 @@ export interface FixtureEvaluation {
 }
 
 /**
- * 14 Test cases directly from docs/TESTING.md §2:
+ * 14 synthetic text fixtures. Conditions that mention accent, pace, noise,
+ * GPS, and network are metadata examples, not actual hardware/network tests.
+ * The dataset contains binary labels only where the fixture is unambiguous.
+ *
+ * Original conditions from docs/TESTING.md §2:
  * 1. Normal speech -> not emergency
  * 2. Emergency speech -> emergency (HIGH)
  * 3. Ambiguous speech -> decided per policy (MEDIUM/confirmation)
@@ -106,6 +116,7 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
     expectedOutcome: 'No emergency (LOW risk, LOG_ONLY)',
     expectedLevel: 'LOW',
     expectedAction: 'LOG_ONLY',
+    label: 'NOT_EMERGENCY',
     context: {
       safetyMode: 'INACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -121,6 +132,7 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
     expectedOutcome: 'Emergency (HIGH risk, ESCALATE)',
     expectedLevel: 'HIGH',
     expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -136,6 +148,7 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
     expectedOutcome: 'Confirmation flow (MEDIUM risk, CONFIRMATION_REQUIRED)',
     expectedLevel: 'MEDIUM',
     expectedAction: 'CONFIRMATION_REQUIRED',
+    label: 'AMBIGUOUS',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -151,6 +164,7 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
     expectedOutcome: 'No escalation (Intent classifier flags benign, LOW risk)',
     expectedLevel: 'LOW',
     expectedAction: 'LOG_ONLY',
+    label: 'NOT_EMERGENCY',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -160,12 +174,13 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
   },
   {
     id: 5,
-    name: 'Background noise / garbled',
-    description: 'Low-confidence or incoherent speech transcript',
+    name: 'Garbled transcript example (text only)',
+    description: 'A short garbled-looking text fixture; no background audio is tested',
     utterance: 'uh um the meeting tomorrow okay',
     expectedOutcome: 'No emergency (LOW risk, LOG_ONLY)',
     expectedLevel: 'LOW',
     expectedAction: 'LOG_ONLY',
+    label: 'NOT_EMERGENCY',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -175,12 +190,13 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
   },
   {
     id: 6,
-    name: 'Different accents',
-    description: 'Emergency utterance with colloquial dialect or phrasing',
+    name: 'Emergency wording variant (text only)',
+    description: 'Emergency wording is represented as text; accent recognition is not tested',
     utterance: 'Please help me someone is following me right now',
     expectedOutcome: 'Emergency (HIGH risk, ESCALATE)',
     expectedLevel: 'HIGH',
     expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -190,12 +206,13 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
   },
   {
     id: 7,
-    name: 'Different speaking speeds',
-    description: 'Urgent fast speech with distress markers',
+    name: 'Urgent wording variant (text only)',
+    description: 'Urgent words are represented as text; speaking speed is not tested',
     utterance: 'Danger danger someone is following me please help save me',
     expectedOutcome: 'Emergency (HIGH risk, ESCALATE)',
     expectedLevel: 'HIGH',
     expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -205,27 +222,30 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
   },
   {
     id: 8,
-    name: 'Poor microphone conditions',
-    description: 'Partial transcript captured under noisy/muffled conditions',
+    name: 'Synthetic acoustic-cue fixture',
+    description: 'Text plus a synthetic distress cue; no microphone or noisy recording is tested',
     utterance: 'save me danger',
     expectedOutcome: 'Elevated risk requiring confirmation or escalation',
     expectedLevel: 'HIGH',
     expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
       threatLevel: 'HIGH',
       repeatedTrigger: false,
+      acousticDistressCue: 0.9,
     },
   },
   {
     id: 9,
-    name: 'No GPS (location unavailable)',
-    description: 'Emergency occurs when GPS permissions are revoked or location unavailable',
+    name: 'Emergency text with GPS-unavailable metadata',
+    description: 'A fixture carries a GPS-unavailable flag; it does not revoke browser location permission',
     utterance: 'Someone is following me please help',
     expectedOutcome: 'Still escalates to HIGH risk (location marked unknown)',
     expectedLevel: 'HIGH',
     expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -236,12 +256,13 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
   },
   {
     id: 10,
-    name: 'Poor network',
-    description: 'Emergency triggers under flaky network connection',
+    name: 'Emergency text with network-unavailable metadata',
+    description: 'A fixture carries a network-unavailable flag; it does not interrupt the network',
     utterance: 'Someone is attacking me please help',
     expectedOutcome: 'Escalates to HIGH risk and queues locally',
     expectedLevel: 'HIGH',
     expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -252,12 +273,13 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
   },
   {
     id: 11,
-    name: 'No internet (offline)',
-    description: 'Offline local evaluation of high threat',
+    name: 'Offline-labeled emergency text',
+    description: 'The fixture is labeled offline; it does not disable the browser network',
     utterance: 'Help someone is following me',
     expectedOutcome: 'High risk determined on-device, offline fallback logged',
     expectedLevel: 'HIGH',
     expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -274,6 +296,7 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
     expectedOutcome: 'Elevated from MEDIUM to HIGH risk via repeat bump rule',
     expectedLevel: 'HIGH',
     expectedAction: 'ESCALATE',
+    label: 'AMBIGUOUS',
     context: {
       safetyMode: 'ACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -283,12 +306,13 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
   },
   {
     id: 13,
-    name: 'Accidental trigger',
-    description: 'TV or casual conversation containing "help me find my dinner pizza place"',
+    name: 'Benign trigger phrase (text only)',
+    description: 'Benign wording includes "help"; this text fixture does not test TV or background speech',
     utterance: 'Can you help me find my dinner pizza place',
     expectedOutcome: 'No escalation (LOW risk, LOG_ONLY)',
     expectedLevel: 'LOW',
     expectedAction: 'LOG_ONLY',
+    label: 'NOT_EMERGENCY',
     context: {
       safetyMode: 'INACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -304,6 +328,7 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
     expectedOutcome: 'Always escalates regardless of context or voice score',
     expectedLevel: 'HIGH',
     expectedAction: 'ESCALATE',
+    label: null,
     context: {
       safetyMode: 'INACTIVE',
       journeyStatus: 'NO_JOURNEY',
@@ -318,26 +343,50 @@ export function evaluateFixture(fixture: FixtureDefinition): FixtureEvaluation {
   const keywordResult = evaluateKeywordBaseline(fixture.utterance)
   const intentResult = classifyUtterance(intentModel, fixture.utterance)
 
-  const threatLevel = fixture.context.threatLevel ?? (intentResult.level === 'HIGH' ? 'HIGH' : 'LOW')
+  const baseThreatLevel = fixture.context.threatLevel ?? (intentResult.level === 'HIGH' ? 'HIGH' : 'LOW')
   const riskAssessment = assessRisk({
     intentLevel: intentResult.level,
-    threatLevel,
+    threatLevel: baseThreatLevel,
+    safetyMode: fixture.context.safetyMode,
+    journeyStatus: fixture.context.journeyStatus,
+    repeatedTrigger: false,
+  })
+
+  // D adds only supplied fixture metadata. Acoustic values are synthetic and
+  // repeated-trigger is a scenario flag; neither is measured by this evaluator.
+  const acousticCue = fixture.context.acousticDistressCue ?? 0
+  const acousticThreatLevel: RiskLevel = acousticCue >= 0.75 ? 'HIGH' : acousticCue >= 0.45 ? 'MEDIUM' : 'LOW'
+  const threatRank: Record<RiskLevel, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 }
+  const extraSignalsThreat = threatRank[acousticThreatLevel] > threatRank[baseThreatLevel]
+    ? acousticThreatLevel
+    : baseThreatLevel
+  const modelDRisk = assessRisk({
+    intentLevel: intentResult.level,
+    threatLevel: extraSignalsThreat,
     safetyMode: fixture.context.safetyMode,
     journeyStatus: fixture.context.journeyStatus,
     repeatedTrigger: fixture.context.repeatedTrigger ?? false,
   })
 
   const triggerSource: TriggerSource = fixture.context.isManualSos ? 'manual_sos' : 'engine'
-  const policyDecision = decideAction(riskAssessment.level, triggerSource)
+  const policyDecision = decideAction(modelDRisk.level, triggerSource)
+  const models: FixtureEvaluation['models'] = {
+    A: { level: keywordResult.level },
+    B: { level: intentResult.level },
+    C: { level: riskAssessment.level },
+    D: { level: modelDRisk.level },
+  }
 
   const passed =
     fixture.context.isManualSos
       ? policyDecision.action === fixture.expectedAction
-      : riskAssessment.level === fixture.expectedLevel &&
+      : modelDRisk.level === fixture.expectedLevel &&
         policyDecision.action === fixture.expectedAction
 
   return {
+    label: fixture.label,
     fixture,
+    models,
     keywordResult,
     intentResult,
     riskAssessment,
@@ -348,4 +397,8 @@ export function evaluateFixture(fixture: FixtureDefinition): FixtureEvaluation {
 
 export function evaluateAllFixtures(): FixtureEvaluation[] {
   return FIXTURE_DEFINITIONS.map(evaluateFixture)
+}
+
+export function evaluateAllModels(): FixtureModelResult[] {
+  return evaluateAllFixtures()
 }

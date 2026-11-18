@@ -7,6 +7,14 @@ import {
   updateContact,
   type Contact,
 } from '../lib/contacts'
+import {
+  openSmsApp,
+  openWhatsAppChat,
+  openPhoneDialer,
+  composeEmergencyMessage,
+  getCustomWebhookUrl,
+  setCustomWebhookUrl,
+} from '../lib/messaging/emergencyMessenger'
 
 export function Contacts() {
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -19,6 +27,11 @@ export function Contacts() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [relation, setRelation] = useState('')
+
+  // SMS Gateway Webhook state
+  const [webhookUrl, setWebhookUrlInput] = useState(() => getCustomWebhookUrl())
+  const [showWebhookConfig, setShowWebhookConfig] = useState(false)
+  const [webhookSavedNotice, setWebhookSavedNotice] = useState<string | null>(null)
 
   async function refresh() {
     const result = await listContacts()
@@ -82,6 +95,12 @@ export function Contacts() {
     await refresh()
   }
 
+  function handleSaveWebhook() {
+    setCustomWebhookUrl(webhookUrl)
+    setWebhookSavedNotice('SMS Gateway webhook saved!')
+    setTimeout(() => setWebhookSavedNotice(null), 3000)
+  }
+
   return (
     <div className="contacts">
       <p>
@@ -89,8 +108,67 @@ export function Contacts() {
       </p>
       <h1>Emergency contacts</h1>
       <p className="subtitle">
-        These contacts receive SIMULATED notifications when an emergency event is created.
+        These contacts receive real distress alerts (via SMS / WhatsApp) and emergency notification records.
       </p>
+
+      {/* SMS Gateway & Dispatch Settings */}
+      <div
+        className="sms-gateway-card"
+        style={{
+          marginBottom: '1.25rem',
+          padding: '0.85rem 1rem',
+          borderRadius: '16px',
+          background: 'rgba(255, 255, 255, 0.85)',
+          border: '1px solid rgba(226, 218, 244, 0.8)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1rem' }}>📱</span>
+            <div>
+              <strong style={{ fontSize: '0.85rem', color: '#1b172a' }}>Direct Phone &amp; SMS Dispatch</strong>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: '#5e5774' }}>
+                SOS opens native SMS &amp; WhatsApp directly to each contact number.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="config-toggle-btn"
+            onClick={() => setShowWebhookConfig((prev) => !prev)}
+          >
+            {showWebhookConfig ? 'Hide Gateway' : 'Optional SMS Gateway'}
+          </button>
+        </div>
+
+        {showWebhookConfig && (
+          <div style={{ marginTop: '0.85rem', paddingTop: '0.85rem', borderTop: '1px solid #e0e7ff' }}>
+            <label htmlFor="sms-webhook-input" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: '0.25rem' }}>
+              Automated SMS Gateway / Webhook URL (Twilio / Fast2SMS / Custom HTTP)
+            </label>
+            <input
+              id="sms-webhook-input"
+              type="url"
+              placeholder="https://api.your-gateway.com/send-sms"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrlInput(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.8rem', borderRadius: '8px', border: '1px solid #d1d5db', background: '#ffffff', marginBottom: '0.5rem' }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={handleSaveWebhook}
+                style={{ padding: '0.45rem 1rem', background: '#7c3aed', color: '#ffffff', borderRadius: '8px', border: 'none', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Save Gateway
+              </button>
+              {webhookSavedNotice && (
+                <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>{webhookSavedNotice}</span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       <form className="contact-form" onSubmit={handleSubmit}>
         <h2>{editing ? `Edit ${editing.name}` : 'Add contact'}</h2>
@@ -157,27 +235,76 @@ export function Contacts() {
         <ul className="contact-list">
           {contacts.map((contact) => (
             <li key={contact.id} className="contact-card">
-              <div className="contact-info">
-                <strong>{contact.name}</strong>
-                {contact.relation && <span className="relation">{contact.relation}</span>}
-                {contact.phone && <span>{contact.phone}</span>}
-                {contact.email && <span>{contact.email}</span>}
+              <div className="contact-main">
+                <div className="contact-avatar-badge" aria-hidden="true">
+                  {contact.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="contact-info">
+                  <div className="contact-title-row">
+                    <strong>{contact.name}</strong>
+                    {contact.relation && <span className="relation">{contact.relation}</span>}
+                  </div>
+                  {contact.phone && (
+                    <div className="contact-detail-row">
+                      <span className="contact-field-icon" aria-hidden="true">📞</span>
+                      <span>{contact.phone}</span>
+                    </div>
+                  )}
+                  {contact.email && (
+                    <div className="contact-detail-row">
+                      <span className="contact-field-icon" aria-hidden="true">✉️</span>
+                      <span>{contact.email}</span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="contact-actions">
-                <button
-                  type="button"
-                  aria-label={`Edit ${contact.name}`}
-                  onClick={() => startEdit(contact)}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Delete ${contact.name}`}
-                  onClick={() => void handleDelete(contact.id)}
-                >
-                  Delete
-                </button>
+                {contact.phone && (
+                  <div className="contact-quick-dispatch">
+                    <button
+                      type="button"
+                      className="contact-dispatch-btn btn-sms"
+                      onClick={() => openSmsApp(contact.phone!, composeEmergencyMessage())}
+                      title="Open default SMS app with distress message"
+                    >
+                      📱 SMS
+                    </button>
+                    <button
+                      type="button"
+                      className="contact-dispatch-btn btn-whatsapp"
+                      onClick={() => openWhatsAppChat(contact.phone!, composeEmergencyMessage())}
+                      title="Open WhatsApp chat with distress message"
+                    >
+                      💬 WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      className="contact-dispatch-btn btn-call"
+                      onClick={() => openPhoneDialer(contact.phone!)}
+                      title="Call emergency contact"
+                    >
+                      📞 Call
+                    </button>
+                  </div>
+                )}
+                <div className="contact-manage-btns">
+                  <button
+                    type="button"
+                    className="btn-edit"
+                    aria-label={`Edit ${contact.name}`}
+                    onClick={() => startEdit(contact)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-delete"
+                    aria-label={`Delete ${contact.name}`}
+                    onClick={() => void handleDelete(contact.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </li>
           ))}
