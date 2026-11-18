@@ -36,8 +36,10 @@ export function composeEmergencyMessage(
 
 export function getSmsIntentUrl(phone: string, message: string): string {
   const clean = cleanPhoneNumber(phone)
-  // Use universal ?body= parameter compatible with Android and iOS
-  return `sms:${clean}?body=${encodeURIComponent(message)}`
+  // iOS uses &body= while Android/RFC5724 uses ?body=
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const separator = isIOS ? '&body=' : '?body='
+  return `sms:${clean}${separator}${encodeURIComponent(message)}`
 }
 
 export function getWhatsAppUrl(phone: string, message: string): string {
@@ -65,21 +67,46 @@ export function setCustomWebhookUrl(url: string): void {
 
 /**
  * Triggers native SMS client with pre-filled emergency recipient and text.
+ * Uses an invisible <a> click with target="_blank" to ensure browsers like Brave,
+ * Chrome, and Firefox on Android hand off directly to the OS Messages app.
  */
 export function openSmsApp(phone: string, message: string): void {
   if (typeof window === 'undefined') return
   const url = getSmsIntentUrl(phone, message)
-  // On mobile browsers, assigning window.location triggers the native messaging application
-  window.location.href = url
+  const a = document.createElement('a')
+  a.href = url
+  a.rel = 'noopener noreferrer'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
 
 /**
- * Opens WhatsApp chat with pre-filled emergency text.
+ * Opens WhatsApp chat directly in the WhatsApp mobile application.
+ * Tries whatsapp:// scheme first to jump straight into the native app,
+ * falling back to wa.me if needed.
  */
 export function openWhatsAppChat(phone: string, message: string): void {
   if (typeof window === 'undefined') return
-  const url = getWhatsAppUrl(phone, message)
-  window.open(url, '_blank', 'noopener,noreferrer')
+  const digits = cleanWhatsAppNumber(phone)
+  const encodedText = encodeURIComponent(message)
+  
+  // Direct app protocol: whatsapp://send?phone=...&text=...
+  const nativeAppUrl = `whatsapp://send?phone=${digits}&text=${encodedText}`
+  const webUrl = `https://wa.me/${digits}?text=${encodedText}`
+
+  const a = document.createElement('a')
+  a.href = nativeAppUrl
+  a.rel = 'noopener noreferrer'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+
+  // Fallback for browsers or desktop environments that don't recognize whatsapp:// protocol
+  setTimeout(() => {
+    if (document.hidden) return
+    window.open(webUrl, '_blank', 'noopener,noreferrer')
+  }, 500)
 }
 
 /**
