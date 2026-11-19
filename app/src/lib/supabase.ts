@@ -8,7 +8,7 @@ export const isSupabaseConfigured = hasSupabaseConfiguration(rawUrl, rawKey)
 export const isDemoModeEnabled = canEnableDemoMode(
   import.meta.env.DEV,
   isSupabaseConfigured,
-  import.meta.env.VITE_DEMO_MODE,
+  import.meta.env.VITE_DEMO_MODE ?? (isSupabaseConfigured ? 'false' : 'true'),
 )
 
 const url = rawUrl || 'https://placeholder.supabase.co'
