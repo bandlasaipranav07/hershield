@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Contact } from '../lib/contacts'
 import {
   composeEmergencyMessage,
@@ -29,8 +29,13 @@ export function EmergencyContactDispatchModal({
 
   const phoneContacts = contacts.filter((c) => Boolean(c.phone && c.phone.trim()))
 
+  const autoDispatchedRef = useRef(false)
+
   useEffect(() => {
-    // If webhook is configured, auto-trigger automated alerts to all phone contacts in the background
+    if (autoDispatchedRef.current) return
+    autoDispatchedRef.current = true
+
+    // 1. If an automated SMS webhook/gateway is configured, send in the background
     if (webhookUrl && phoneContacts.length > 0) {
       for (const contact of phoneContacts) {
         setWebhookStatuses((prev) => ({ ...prev, [contact.id]: 'sending' }))
@@ -41,8 +46,12 @@ export function EmergencyContactDispatchModal({
           }))
         })
       }
+    } else {
+      // 2. Automatically launch the device SMS app with pre-filled distress message & coordinates
+      const targetPhone = phoneContacts.length > 0 ? phoneContacts[0].phone! : ''
+      openSmsApp(targetPhone, message)
     }
-  }, [webhookUrl, message]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [webhookUrl, message, phoneContacts])
 
   function handleCopy() {
     if (navigator.clipboard) {
