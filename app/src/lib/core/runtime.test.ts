@@ -47,7 +47,8 @@ describe('HerShieldRuntime Coordinator', () => {
     expect(runtime.audioBuffer.getSnapshot().length).toBe(0)
   })
 
-  it('coordinates pipeline on threat confirmation and triggers escalation', async () => {
+  it('initiates confirmation countdown on high-risk transcript and dispatches after expiry', async () => {
+    vi.useFakeTimers()
     vi.spyOn(notifyModule, 'simulateNotifications').mockResolvedValueOnce({
       notified: 2,
       error: null,
@@ -55,10 +56,12 @@ describe('HerShieldRuntime Coordinator', () => {
 
     const onThreatConfirmed = vi.fn()
     const onSosDispatched = vi.fn()
+    const onConfirmationRequired = vi.fn()
 
     runtime = new HerShieldRuntime({
       onThreatConfirmed,
       onSosDispatched,
+      onConfirmationRequired,
     })
 
     runtime.stateMachine.arm()
@@ -70,31 +73,35 @@ describe('HerShieldRuntime Coordinator', () => {
       safetyMode: 'ACTIVE',
     })
 
+    // Per 4-model protocol: single-frame detection triggers confirmation countdown, NOT immediate dispatch
     expect(res.evaluation.escalated).toBe(true)
-    expect(res.decision.action).toBe('ESCALATE')
-    expect(res.incident).toBeDefined()
+    expect(res.decision.action).toBe('CONFIRMATION_REQUIRED')
+    expect(res.incident).toBeUndefined()
+    expect(onConfirmationRequired).toHaveBeenCalled()
+
+    // After countdown expires, incident is dispatched
+    await vi.advanceTimersByTimeAsync(CONFIRMATION_SECONDS * 1000)
     expect(onThreatConfirmed).toHaveBeenCalled()
     expect(onSosDispatched).toHaveBeenCalled()
+
+    await runtime.stateMachine.disarm()
+    vi.useRealTimers()
   })
 
-  it('creates at most one incident for repeated high-risk frames in one armed session', async () => {
+  it('creates at most one incident for repeated manual SOS triggers in one armed session', async () => {
     const saveIncident = vi.spyOn(localIncidentStore, 'saveIncident').mockResolvedValue({
       localId: 'incident-once',
       userId: 'user-1',
-      eventType: 'voice_detected',
+      eventType: 'manual_sos',
       riskLevel: 'HIGH',
       createdAt: new Date().toISOString(),
     } as never)
     vi.spyOn(notifyModule, 'simulateNotifications').mockResolvedValue({ notified: 0, error: null })
     runtime.stateMachine.arm()
 
-    const frame = {
-      samples: new Float32Array([0.9, 0.95, -0.9]),
-      transcript: 'someone is attacking me please help',
-      safetyMode: 'ACTIVE' as const,
-    }
-    await runtime.processAudioFrame(frame)
-    await runtime.processAudioFrame(frame)
+    // Manual SOS dispatches immediately; second call must be a no-op (idempotency guard)
+    await runtime.triggerManualSos()
+    await runtime.triggerManualSos()
 
     expect(saveIncident).toHaveBeenCalledOnce()
   })

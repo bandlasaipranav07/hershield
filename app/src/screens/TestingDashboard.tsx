@@ -13,6 +13,10 @@ import {
 import { classifyUtterance, intentModel } from '../lib/intent/classify'
 import { assessRisk, type RiskSignals, type SafetyMode, type JourneyStatus, type RiskLevel } from '../lib/risk/riskEngine'
 import { decideAction } from '../lib/policy'
+import { evaluateModelA } from '../lib/detection/modelA'
+import { evaluateModelB } from '../lib/detection/modelB'
+import { ModelCContextAnalyzer } from '../lib/detection/modelC'
+import { evaluateModelD } from '../lib/detection/modelD'
 
 function formatMetric(value: number | null): string {
   return value === null ? 'Unavailable' : `${(value * 100).toFixed(1)}%`
@@ -43,6 +47,25 @@ export function TestingDashboard() {
   const customEvaluation = useMemo(() => {
     if (!customText.trim()) return null
 
+    // Run Four-Model Architecture
+    const fourModelA = evaluateModelA({
+      samples: new Float32Array(16000),
+      transcript: customText,
+    })
+    const fourModelB = evaluateModelB(customText)
+    const contextAnalyzer = new ModelCContextAnalyzer()
+    const fourModelC = contextAnalyzer.evaluate({
+      modelA: fourModelA,
+      modelB: fourModelB,
+      safetyMode,
+      journeyStatus,
+    })
+    const fourModelD = evaluateModelD({
+      modelA: fourModelA,
+      modelB: fourModelB,
+      modelC: fourModelC,
+    })
+
     const keywordRes = evaluateKeywordBaseline(customText)
     const intentRes = classifyUtterance(intentModel, customText)
     
@@ -70,6 +93,10 @@ export function TestingDashboard() {
       policy: policyRes,
       riskD,
       policyD,
+      fourModelA,
+      fourModelB,
+      fourModelC,
+      fourModelD,
     }
   }, [customText, safetyMode, journeyStatus, threatLevel, repeatedTrigger])
 
@@ -178,7 +205,7 @@ export function TestingDashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
           <input
             type="text"
-            placeholder="Type any utterance (e.g. 'Help me with my assignment' or 'Someone is following me')..."
+            placeholder="Type any utterance in English, Telugu (తెలుగు), or Hindi (हिंदी)..."
             value={customText}
             onChange={(e) => setCustomText(e.target.value)}
             style={{
@@ -193,6 +220,37 @@ export function TestingDashboard() {
               outline: 'none',
             }}
           />
+
+          {/* Quick preset test phrases */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>Quick Test:</span>
+            {[
+              { label: 'English Distress', text: 'Someone help me! Please save me!' },
+              { label: 'Telugu Distress', text: 'నన్ను కాపాడండి! ఎవరైనా సహాయం చేయండి!' },
+              { label: 'Telugu Resistance', text: 'నన్ను ముట్టుకోవద్దు! వదిలేయండి!' },
+              { label: 'Hindi Distress', text: 'बचाओ मुझे! कोई मदद करो!' },
+              { label: 'Hindi Resistance', text: 'हाथ मत लगाओ! मुझे छोड़ो!' },
+              { label: 'Playful Laughter', text: 'Stop it, help me, you are hilarious haha' },
+              { label: 'Casual Conversation', text: 'Can someone help carry this bag?' },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => setCustomText(preset.text)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '16px',
+                  color: '#e2e8f0',
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.65rem',
+                  cursor: 'pointer',
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.88rem', color: '#cbd5e1' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -255,16 +313,16 @@ export function TestingDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', fontSize: '0.88rem' }}>
                 <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
                   <strong style={{ color: '#818cf8' }}>Model A (Keyword):</strong><br />
-                  Triggered: {customEvaluation.keyword.triggered ? 'YES' : 'NO'}
-                  {customEvaluation.keyword.matchedKeyword && ` [${customEvaluation.keyword.matchedKeyword}]`}
-                  <br />
-                  Result: <span style={{ fontWeight: 700, color: customEvaluation.keyword.level === 'HIGH' ? '#f87171' : '#34d399' }}>{customEvaluation.keyword.level}</span>
+                  Triggered: <span style={{ fontWeight: 700, color: customEvaluation.keyword.triggered ? '#f87171' : '#34d399' }}>{customEvaluation.keyword.triggered ? 'YES' : 'NO'}</span><br />
+                  Matched: <strong style={{ color: '#e0e7ff' }}>{customEvaluation.keyword.matchedKeyword ?? 'None'}</strong><br />
+                  Level: {customEvaluation.keyword.level}
                 </div>
 
                 <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
                   <strong style={{ color: '#818cf8' }}>Model B (Intent Classifier):</strong><br />
                   Level: <span style={{ fontWeight: 700, color: customEvaluation.intent.level === 'HIGH' ? '#f87171' : customEvaluation.intent.level === 'MEDIUM' ? '#fbbf24' : '#34d399' }}>{customEvaluation.intent.level}</span><br />
-                  Probability: {(customEvaluation.intent.emergencyProbability * 100).toFixed(1)}%
+                  Emergency Prob: {(customEvaluation.intent.emergencyProbability * 100).toFixed(1)}%<br />
+                  Model: Logistic Regression (TF-IDF)
                 </div>
 
                 <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
@@ -272,11 +330,35 @@ export function TestingDashboard() {
                   Risk Level: <span style={{ fontWeight: 700, color: customEvaluation.risk.level === 'HIGH' ? '#f87171' : customEvaluation.risk.level === 'MEDIUM' ? '#fbbf24' : '#34d399' }}>{customEvaluation.risk.level}</span> (Score: {customEvaluation.risk.score})<br />
                   Action: <span style={{ fontWeight: 700, color: customEvaluation.policy.action === 'ESCALATE' ? '#f87171' : customEvaluation.policy.action === 'CONFIRMATION_REQUIRED' ? '#fbbf24' : '#34d399' }}>{customEvaluation.policy.action}</span>
                 </div>
+
                 <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
                   <strong style={{ color: '#818cf8' }}>Model D (Extra Signals):</strong><br />
                   Risk Level: <span style={{ fontWeight: 700, color: customEvaluation.riskD.level === 'HIGH' ? '#f87171' : customEvaluation.riskD.level === 'MEDIUM' ? '#fbbf24' : '#34d399' }}>{customEvaluation.riskD.level}</span> (Score: {customEvaluation.riskD.score})<br />
                   Action: <span style={{ fontWeight: 700, color: customEvaluation.policyD.action === 'ESCALATE' ? '#f87171' : customEvaluation.policyD.action === 'CONFIRMATION_REQUIRED' ? '#fbbf24' : '#34d399' }}>{customEvaluation.policyD.action}</span>
                   <div style={{ marginTop: '0.35rem', color: '#94a3b8', fontSize: '0.75rem' }}>Uses the repeat toggle; no acoustic sample is supplied by this text tester.</div>
+                </div>
+              </div>
+
+              {/* Advanced Multilingual 4-Model Pipeline Breakdown */}
+              <h4 style={{ fontSize: '0.9rem', marginTop: '1.25rem', marginBottom: '0.5rem', color: '#a5b4fc' }}>
+                Multilingual 4-Model Detection Engine (English, Telugu, Hindi):
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem', fontSize: '0.82rem' }}>
+                <div style={{ background: 'rgba(15, 23, 42, 0.4)', padding: '0.6rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                  <strong style={{ color: '#38bdf8' }}>4-Model A:</strong> {customEvaluation.fourModelA.trigger_detected ? `Triggered (${customEvaluation.fourModelA.matched_language.toUpperCase()})` : 'None'}<br />
+                  Type: {customEvaluation.fourModelA.trigger_type}
+                </div>
+                <div style={{ background: 'rgba(15, 23, 42, 0.4)', padding: '0.6rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                  <strong style={{ color: '#38bdf8' }}>4-Model B:</strong> {customEvaluation.fourModelB.intent} ({customEvaluation.fourModelB.severity})<br />
+                  Emotion: {customEvaluation.fourModelB.emotion}
+                </div>
+                <div style={{ background: 'rgba(15, 23, 42, 0.4)', padding: '0.6rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                  <strong style={{ color: '#38bdf8' }}>4-Model C:</strong> {customEvaluation.fourModelC.temporal_pattern}<br />
+                  Context Score: {customEvaluation.fourModelC.context_threat_score}/10
+                </div>
+                <div style={{ background: 'rgba(15, 23, 42, 0.4)', padding: '0.6rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                  <strong style={{ color: '#38bdf8' }}>4-Model D:</strong> <span style={{ fontWeight: 700, color: customEvaluation.fourModelD.classification === 'normal_activity' ? '#34d399' : '#f87171' }}>{customEvaluation.fourModelD.classification}</span><br />
+                  Action: {customEvaluation.fourModelD.action}
                 </div>
               </div>
 

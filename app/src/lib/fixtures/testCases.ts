@@ -34,6 +34,7 @@ export interface KeywordBaselineResult {
 
 export function evaluateKeywordBaseline(text: string): KeywordBaselineResult {
   const normalized = text.toLowerCase()
+
   for (const keyword of BASELINE_KEYWORDS) {
     const regex = new RegExp(`\\b${keyword}\\b`, 'i')
     if (regex.test(normalized)) {
@@ -335,6 +336,73 @@ export const FIXTURE_DEFINITIONS: FixtureDefinition[] = [
       threatLevel: 'LOW',
       repeatedTrigger: false,
       isManualSos: true,
+    },
+  },
+]
+
+export const MULTILINGUAL_FIXTURES: FixtureDefinition[] = [
+  {
+    id: 15,
+    name: 'Telugu emergency speech',
+    description: 'Direct active threat phrasing in Telugu (తెలుగు)',
+    utterance: 'నన్ను కాపాడండి! ఎవరైనా సహాయం చేయండి!',
+    expectedOutcome: 'Emergency (HIGH risk, ESCALATE)',
+    expectedLevel: 'HIGH',
+    expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
+    context: {
+      safetyMode: 'ACTIVE',
+      journeyStatus: 'NO_JOURNEY',
+      threatLevel: 'HIGH',
+      repeatedTrigger: false,
+    },
+  },
+  {
+    id: 16,
+    name: 'Telugu resistance phrasing',
+    description: 'Boundary defense and resistance in Telugu',
+    utterance: 'నన్ను ముట్టుకోవద్దు! వదిలేయండి!',
+    expectedOutcome: 'High risk resistance (HIGH risk, ESCALATE)',
+    expectedLevel: 'HIGH',
+    expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
+    context: {
+      safetyMode: 'ACTIVE',
+      journeyStatus: 'NO_JOURNEY',
+      threatLevel: 'HIGH',
+      repeatedTrigger: false,
+    },
+  },
+  {
+    id: 17,
+    name: 'Hindi emergency speech',
+    description: 'Direct active threat phrasing in Hindi (हिंदी)',
+    utterance: 'बचाओ मुझे! कोई मदद करो!',
+    expectedOutcome: 'Emergency (HIGH risk, ESCALATE)',
+    expectedLevel: 'HIGH',
+    expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
+    context: {
+      safetyMode: 'ACTIVE',
+      journeyStatus: 'NO_JOURNEY',
+      threatLevel: 'HIGH',
+      repeatedTrigger: false,
+    },
+  },
+  {
+    id: 18,
+    name: 'Hindi resistance phrasing',
+    description: 'Boundary defense and resistance in Hindi',
+    utterance: 'हाथ मत लगाओ! मुझे छोड़ो!',
+    expectedOutcome: 'High risk resistance (HIGH risk, ESCALATE)',
+    expectedLevel: 'HIGH',
+    expectedAction: 'ESCALATE',
+    label: 'EMERGENCY',
+    context: {
+      safetyMode: 'ACTIVE',
+      journeyStatus: 'NO_JOURNEY',
+      threatLevel: 'HIGH',
+      repeatedTrigger: false,
     },
   },
 ]
