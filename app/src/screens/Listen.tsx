@@ -7,6 +7,8 @@ import { HerShieldRuntime } from '../lib/core/runtime'
 import type { ArmState } from '../lib/core/armState'
 import type { TemporalEvaluationResult } from '../lib/risk/temporalRiskEngine'
 import type { MicCaptureError } from '../lib/audio/microphoneCapture'
+import { listContacts, type Contact } from '../lib/contacts'
+import { EmergencyContactDispatchModal } from '../components/EmergencyContactDispatchModal'
 import {
   isSarvamConfigured,
   getSarvamApiKey,
@@ -257,6 +259,24 @@ export function Listen() {
   const [sarvamLang, setSarvamLang] = useState(() => getSarvamLanguage())
   const [showSarvamConfig, setShowSarvamConfig] = useState(false)
   const [sarvamSaveNotice, setSarvamSaveNotice] = useState<string | null>(null)
+
+  // Emergency contact dispatch state
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [showDispatchModal, setShowDispatchModal] = useState(false)
+
+  useEffect(() => {
+    if (threatStatus === 'SOS / ESCALATED') {
+      listContacts()
+        .then((res) => {
+          setContacts(res.contacts ?? [])
+          setShowDispatchModal(true)
+        })
+        .catch(() => {
+          setContacts([])
+          setShowDispatchModal(true)
+        })
+    }
+  }, [threatStatus])
 
   const syncStateFromGlobals = useCallback(() => {
     setArmState(globalArmState)
@@ -613,6 +633,43 @@ export function Listen() {
             </div>
           )}
 
+          {threatStatus === 'SOS / ESCALATED' && (
+            <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  listContacts()
+                    .then((res) => {
+                      setContacts(res.contacts ?? [])
+                      setShowDispatchModal(true)
+                    })
+                    .catch(() => {
+                      setContacts([])
+                      setShowDispatchModal(true)
+                    })
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.85rem 1rem',
+                  background: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.9rem',
+                  borderRadius: '14px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(225, 29, 72, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                🚨 Send Emergency SMS / WhatsApp to Contacts
+              </button>
+            </div>
+          )}
+
           {armState !== 'DISARMED' && !micError && (
             <p
               style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '1rem' }}
@@ -624,6 +681,13 @@ export function Listen() {
             </p>
           )}
         </section>
+      )}
+
+      {showDispatchModal && (
+        <EmergencyContactDispatchModal
+          contacts={contacts}
+          onClose={() => setShowDispatchModal(false)}
+        />
       )}
     </div>
   )

@@ -212,12 +212,54 @@ export function EmergencyContactDispatchModal({
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#991b1b', fontWeight: 600 }}>
                   No phone numbers found in your contacts.
                 </p>
-                <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#b91c1c' }}>
-                  Add emergency contact phone numbers in the Contacts tab to send instant SMS alerts.
+                <p style={{ margin: '0.25rem 0 0.75rem', fontSize: '0.75rem', color: '#b91c1c' }}>
+                  Add emergency contact phone numbers in the Contacts tab to send instant 1-tap alerts, or open your SMS app directly below:
                 </p>
+                <button
+                  type="button"
+                  onClick={() => openSmsApp('', message)}
+                  style={{
+                    padding: '0.55rem 1rem',
+                    background: '#e11d48',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 4px 12px rgba(225, 29, 72, 0.25)',
+                  }}
+                >
+                  📱 Open SMS App Now (Send to Any Number)
+                </button>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <button
+                  type="button"
+                  onClick={() => handleSendSms(phoneContacts[0])}
+                  style={{
+                    padding: '0.7rem 1rem',
+                    background: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '14px',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 15px rgba(225, 29, 72, 0.35)',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  🚨 Send SMS Now to {phoneContacts[0].name}
+                </button>
                 {phoneContacts.map((contact) => (
                   <div
                     key={contact.id}

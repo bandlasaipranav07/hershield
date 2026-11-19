@@ -63,12 +63,11 @@ export function Home() {
     // Load user's emergency contacts to enable real SMS / WhatsApp dispatch
     try {
       const contactsRes = await listContacts()
-      if (contactsRes.contacts && contactsRes.contacts.length > 0) {
-        setSosContacts(contactsRes.contacts)
-        setShowDispatchModal(true)
-      }
+      setSosContacts(contactsRes.contacts ?? [])
+      setShowDispatchModal(true)
     } catch {
-      // Ignore background load error
+      setSosContacts([])
+      setShowDispatchModal(true)
     }
   }
 
